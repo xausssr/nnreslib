@@ -6,8 +6,6 @@ from prettytable import PrettyTable
 
 from utils.tf_helper import tf
 
-tf.compat.v1.disable_eager_execution()
-
 
 class NeuralNet:
     def __init__(self, settings, verbose=False):
