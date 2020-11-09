@@ -182,9 +182,9 @@ class NeuralNet():
             self.error_train["mse"].append(current_loss)
             y_pred_valid = self.session.run(self.y_hat, valid_dict)
             y_pred = self.session.run(self.y_hat, train_dict)
-            self.error_train["mae"].append(mae(np.argmax(np.asarray(y_pred)[:len_of_train], axis=1) + 1, np.argmax(np.asarray(y_train)[:len_of_train], axis=1) + 1))
+            self.error_train["mae"].append(mae(np.argmax(np.asarray(y_pred)[:len_of_train], axis=1), np.argmax(np.asarray(y_train)[:len_of_train], axis=1)))
             self.error_test["mse"].append(mse(np.asarray(y_pred_valid)[:len_of_test].ravel(), np.asarray(y_valid)[:len_of_test].ravel()))
-            self.error_test["mae"].append(mae(np.argmax(np.asarray(y_pred_valid)[:len_of_test], axis=1) + 1, np.argmax(np.asarray(y_valid)[:len_of_test], axis=1) + 1))
+            self.error_test["mae"].append(mae(np.argmax(np.asarray(y_pred_valid)[:len_of_test], axis=1), np.argmax(np.asarray(y_valid)[:len_of_test], axis=1)))
             
             if not success:
 
@@ -201,6 +201,16 @@ class NeuralNet():
         print(f'LevMarq ended on: {step:},\tfinal loss: {current_loss:.2e}\n')
         tp = self.session.run(self.p)
         return
+
+    def predict(self, data_to_predict, raw=True):
+        
+        init_len = len(data_to_predict)
+        predict_dict = {self.x: np.vstack((data_to_predict, np.zeros(shape=(self.settings["input_len"] - len(data_to_predict), data_to_predict.shape[1]))))}
+        preds = self.session.run(self.y_hat, predict_dict)[:init_len]
+        if raw:
+            return preds
+        if raw == False:
+            return  np.argmax(preds, axis=1)
 
     def plot_lw(self, path, save=False):
         
