@@ -10,7 +10,7 @@ valid_data = pd.read_csv(path + "test.csv")
 settings = {
             "outs" : 5,
             "input_len" : len(train_data),
-            "architecture" : [18],
+            "architecture" : [12],
             "inputs" : len(train_data.columns) - 5,
             "activation" : "sigmoid",
         }
@@ -26,11 +26,12 @@ nn.fit_lm(
         y_valid=valid_data.values[:,-5:],
         mu_init=5.0, 
         min_error=2.083e-4 , 
-        max_steps=100, 
+        max_steps=2500, 
         mu_multiply=10, 
         mu_divide=10, 
         m_into_epoch=10, 
         verbose=True
     ) 
 
+# Отрисовка обучения ИНС
 nn.plot_lw(None, save=False)

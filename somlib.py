@@ -206,12 +206,12 @@ class NeuralNet():
         
         best_result = np.min(self.error_test["mae"])
 
-        plt.rcParams.update({'font.size': 16})
+        plt.rcParams.update({'font.size': 15})
         fig, ax = plt.subplots(2, 1)
 
         ax[0].plot([10 * np.log10(float(self.min_error))] * int(len(self.error_train["mse"])), "r--", label="Критерий останова")
-        ax[0].plot(10 * np.log10(self.error_train["mae"]), "g", label="MSE обучение")
-        ax[0].plot(10 * np.log10(self.error_test["mae"]), "b", label="MSE тест")
+        ax[0].plot(10 * np.log10(self.error_train["mse"]), "g", label="MSE обучение")
+        ax[0].plot(10 * np.log10(self.error_test["mse"]), "b", label="MSE тест")
         ax[0].legend(loc="best")
 
         ax[1].plot([best_result] * int(len(self.error_train["mse"])), "r--", label=f"Лучший результат на тесте {round(best_result, 3)}")
