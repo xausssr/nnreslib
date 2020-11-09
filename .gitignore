@@ -1,6 +1,18 @@
-__pycache__/somlib.cpython-38.pyc
+# Environments
 .venv
-.vscode
-.ipynb_checkpoints
-*.pyc
+.env
+env
+venv
 
+# VSCode
+.vscode
+
+# jupiter
+.ipynb_checkpoints
+
+# Byte-compiled / optimized
+__pycache__/
+*.py[cod]
+
+# mypy
+.mypy_cache/
