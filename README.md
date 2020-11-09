@@ -6,7 +6,7 @@ For testing lib:
 
 TODO:
 1. Format this Readme (add markdown)
-2. Re-write architecture logic -- more complex
+~~2. Re-write architecture logic -- more complex~~
 3. Add CNN (convolution neural networks)
 4. Add more losses into tf graph
 5. Add stop criteria into settings
@@ -21,7 +21,7 @@ TODO:
 
 Список задач:
 1. Отформатировать данное readme (добавить markdown-разметку)
-2. Переписать логику построения архитектуры ИНС -- сделать более детальной
+~~2. Переписать логику построения архитектуры ИНС -- сделать более детальной~~
 3. Добавить поддержку сверточных нейронных сетей
 4. Добавить больше целевых функций ошибки в граф вычислений (tf)
 5. Добавить возможность изменять критерий останова через настройки

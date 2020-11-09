@@ -3,6 +3,7 @@ import tensorflow as tf
 import math
 import os
 import matplotlib.pylab as plt
+from prettytable import PrettyTable
 tf.compat.v1.disable_eager_execution()
 import tensorflow.python.util.deprecation as deprecation
 deprecation._PRINT_DEPRECATION_WARNINGS = False
@@ -27,27 +28,31 @@ class NeuralNet():
         self.x = tf.compat.v1.placeholder(tf.float64, shape=[self.m, settings["inputs"]])
         self.y = tf.compat.v1.placeholder(tf.float64, shape=[self.m, settings["outs"]])
 
-        self.nn = self.settings["architecture"]
+        self.nn = []
+        for i in self.settings["architecture"].keys():
+            if self.settings["architecture"][i]["type"] == "fully_conneted" or self.settings["architecture"][i]["type"] == "out":
+                self.nn.append(self.settings["architecture"][i]["neurons"])
 
-        self.st = [self.settings["inputs"]]+self.nn+[self.settings["outs"]]
+        self.st = [self.settings["inputs"]]+self.nn
 
+        # Полносвязная часть
         self.sizes = []
         self.shapes = []
-        for i in range(len(self.nn)+1):
-            self.shapes.append((self.st[i], self.st[i+1]))
-            self.shapes.append((1, self.st[i+1]))
+        for i in range(1, len(self.nn) + 1):
+            self.shapes.append((self.st[i - 1], self.st[i]))
+            self.shapes.append((1, self.st[i]))
         self.sizes = [h*w for h, w in self.shapes]
         self.neurons_cnt = sum(self.sizes)
-        
-        #TODO сделать функцию активации для любого слоя!
-        if settings["activation"] == "relu":
-            self.activation = tf.nn.relu
-        if settings["activation"] == "tanh":
-            self.activation = tf.nn.tanh
-        else:
-            self.activation = tf.nn.sigmoid
+
+        activations = {
+            "relu" : tf.nn.relu, 
+            "sigmoid" : tf.nn.sigmoid, 
+            "tanh" : tf.nn.tanh, 
+            "softmax" : tf.nn.softmax 
+            }
 
         # Граф для прямого вычисления
+        # TODO Другие инициалезеры
         self.initializer = tf.compat.v1.initializers.lecun_uniform()
         self.p = tf.Variable(self.initializer([self.neurons_cnt], dtype=tf.float64))
         self.parms = tf.split(self.p, self.sizes, 0)
@@ -59,8 +64,8 @@ class NeuralNet():
         #TODO Перепсать под два класса сетей СНС и ПИНС
         self.y_hat = self.x
         for i in range(len(self.nn)):
+            self.activation = activations[self.settings["architecture"][list(settings["architecture"].keys())[i]]["activation"]]
             self.y_hat = self.activation(tf.matmul(self.y_hat, self.Ws[i]) + self.bs[i])
-        self.y_hat = tf.matmul(self.y_hat, self.Ws[-1]) + self.bs[-1]
         self.y_hat_flat = tf.squeeze(self.y_hat)
         
         self.r = self.y - self.y_hat
@@ -119,11 +124,20 @@ class NeuralNet():
         if verbose:
             print(5 * "=" + ">Neural net info<" + 5 * "=", "\n")
             print("Settings: ")
+            t = PrettyTable(['Setting', 'Value'])
             for i in settings.keys():
-                print(f"         {i}:{settings[i]}")
+                if i != "architecture":
+                    t.add_row([i, settings[i]])
+            print(t)
             print("\ntf version: ", tf.__version__, "\n")
-            print("\n")
             print(f"Complex:\n        [parameters]x[data lenth]\n        {self.neurons_cnt}x{self.m}\n")
+            print("Architecture:")
+            t = PrettyTable(['Name', 'Type', "Neurons number", "Activation"])
+            t.add_row(["input", "input", settings["inputs"], "-"])
+            for i in settings["architecture"].keys():
+                t.add_row([i, settings["architecture"][i]["type"], settings["architecture"][i]["neurons"], settings["architecture"][i]["activation"]])
+            print(t)
+            print("\n")
 
         return
 
