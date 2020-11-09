@@ -10,16 +10,16 @@ valid_data = pd.read_csv(path + "test.csv")
 settings = {
             "outs" : 5,
             "input_len" : len(train_data),
-            "architecture" : [31,18],
+            "architecture" : [18],
             "inputs" : len(train_data.columns) - 5,
-            "activation" : "sigmoid"
+            "activation" : "sigmoid",
         }
 
 # Построение ИНС
 nn = NeuralNet(settings, verbose=True)
 
 # Обучение ИНС (Метод Левенберга-Марквардта)
-mse_train, mse_test, mae_train, mae_test, p = nn.fit_lm(
+nn.fit_lm(
         x_train=train_data.values[:,:-5], 
         y_train=train_data.values[:,-5:],
         x_valid=valid_data.values[:,:-5],
@@ -32,3 +32,5 @@ mse_train, mse_test, mae_train, mae_test, p = nn.fit_lm(
         m_into_epoch=10, 
         verbose=True
     ) 
+
+nn.plot_lw(None, save=False)
