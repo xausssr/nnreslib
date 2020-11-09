@@ -7,10 +7,18 @@ path = os.path.abspath(__file__).replace("test.py", "data/")
 train_data = pd.read_csv(path + "train.csv")
 valid_data = pd.read_csv(path + "test.csv")
 
+# Архитектура ИНС
+architecture = {
+    "l1" : {"type": "fully_conneted", "neurons" : 28, "activation": "sigmoid"},
+    "l2" : {"type": "fully_conneted", "neurons" : 12, "activation": "tanh"},
+    "out": {"type": "out", "neurons" : 5, "activation" : "softmax"}
+}
+
+# Настройки обучения
 settings = {
             "outs" : 5,
             "input_len" : len(train_data),
-            "architecture" : [12],
+            "architecture" : architecture,
             "inputs" : len(train_data.columns) - 5,
             "activation" : "sigmoid",
         }
