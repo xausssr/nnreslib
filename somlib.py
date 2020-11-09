@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf
 import math
 import os
+import matplotlib.pylab as plt
 tf.compat.v1.disable_eager_execution()
 import tensorflow.python.util.deprecation as deprecation
 deprecation._PRINT_DEPRECATION_WARNINGS = False
@@ -129,6 +130,7 @@ class NeuralNet():
     def fit_lm(self, x_train, y_train, x_valid, y_valid, mu_init=3.0, min_error=1e-10, max_steps=100, mu_multiply=10, mu_divide=10, m_into_epoch=10, verbose=False):
         
         # Приведение батчей к одной форме [shape]
+        self.min_error = min_error
         len_of_test = len(x_valid)
         len_of_train = len(x_train)
         x_train, x_valid, y_train, y_valid = batch_expansion(x_train, x_valid, y_train, y_valid)
@@ -145,9 +147,8 @@ class NeuralNet():
 
         train_dict[self.mu] = np.array([mu_init])
         
-        #TODO добавить в settings логику выбора трека ошибки
-        error_train = {"mse_train": [], "mae_train": []}
-        error_test = {"mse_test": [], "mae_test": []}
+        self.error_train = {"mse": [], "mae": []}
+        self.error_test = {"mse": [], "mae": []}
 
         step = 0
 
@@ -158,10 +159,10 @@ class NeuralNet():
             
             if step % int(max_steps / 5) == 0 and verbose:
                 error_string = ""
-                for err in error_train.keys():
-                    error_string += f"{err}: {error_train[err][-1]:.2e} "
-                for err in error_test.keys():
-                    error_string += f"{err}: {error_test[err][-1]:.2e} "
+                for err in self.error_train.keys():
+                    error_string += f"{err}: {self.error_train[err][-1]:.2e} "
+                for err in self.error_test.keys():
+                    error_string += f"{err}: {self.error_test[err][-1]:.2e} "
                 print(f'LM step: {step}, mu: {train_dict[self.mu][0]:.2e}, {error_string}')
 
             self.session.run(self.save_parms)
@@ -178,31 +179,60 @@ class NeuralNet():
                 train_dict[self.mu] *= mu_multiply
                 self.session.run(self.restore_parms)
             
-            #TODO Переписать логику трека ошибок, MSE на тесте не корректна!!!!
-            error_train["mse_train"].append(current_loss)
-            error_test["mse_test"].append(self.session.run(self.loss, valid_dict))
-            y_pred_temp = self.session.run(self.y_hat, train_dict)
-            error_train["mae_train"].append(mae(np.argmax(np.asarray(y_pred_temp)[:len_of_train], axis=1) + 1, np.argmax(np.asarray(y_train)[:len_of_train], axis=1) + 1))
-            y_pred_temp = self.session.run(self.y_hat, valid_dict)
-            error_test["mae_test"].append(mae(np.argmax(np.asarray(y_pred_temp)[:len_of_test], axis=1) + 1, np.argmax(np.asarray(y_valid)[:len_of_test], axis=1) + 1))
+            self.error_train["mse"].append(current_loss)
+            y_pred_valid = self.session.run(self.y_hat, valid_dict)
+            y_pred = self.session.run(self.y_hat, train_dict)
+            self.error_train["mae"].append(mae(np.argmax(np.asarray(y_pred)[:len_of_train], axis=1) + 1, np.argmax(np.asarray(y_train)[:len_of_train], axis=1) + 1))
+            self.error_test["mse"].append(mse(np.asarray(y_pred_valid)[:len_of_test].ravel(), np.asarray(y_valid)[:len_of_test].ravel()))
+            self.error_test["mae"].append(mae(np.argmax(np.asarray(y_pred_valid)[:len_of_test], axis=1) + 1, np.argmax(np.asarray(y_valid)[:len_of_test], axis=1) + 1))
             
             if not success:
 
                 error_string = ""
-                for err in error_train.keys():
-                    error_string += f"{err}: {error_train[err][-1]:.2e} "
-                for err in error_test.keys():
-                    error_string += f"{err}: {error_test[err][-1]:.2e} "
+                for err in self.error_train.keys():
+                    error_string += f"{err}: {self.error_train[err][-1]:.2e} "
+                for err in self.error_test.keys():
+                    error_string += f"{err}: {self.error_test[err][-1]:.2e} "
 
                 print(f'LM failed to improve, on step {step:}, {error_string}\n')
                 tp = self.session.run(self.p)
-                return np.asarray(error_train["mse_train"]), np.asarray(error_test["mse_test"]), np.asarray(error_train["mae_train"]), np.asarray(error_test["mae_test"]), tp
-                break   
+                return  
 
         print(f'LevMarq ended on: {step:},\tfinal loss: {current_loss:.2e}\n')
         tp = self.session.run(self.p)
-        return np.asarray(error_train["mse_train"]), np.asarray(error_test["mse_test"]), np.asarray(error_train["mae_train"]), np.asarray(error_test["mae_test"]), tp
+        return
 
+    def plot_lw(self, path, save=False):
+        
+        best_result = np.min(self.error_test["mae"])
+
+        plt.rcParams.update({'font.size': 16})
+        fig, ax = plt.subplots(2, 1)
+
+        ax[0].plot([10 * np.log10(float(self.min_error))] * int(len(self.error_train["mse"])), "r--", label="Критерий останова")
+        ax[0].plot(10 * np.log10(self.error_train["mae"]), "g", label="MSE обучение")
+        ax[0].plot(10 * np.log10(self.error_test["mae"]), "b", label="MSE тест")
+        ax[0].legend(loc="best")
+
+        ax[1].plot([best_result] * int(len(self.error_train["mse"])), "r--", label=f"Лучший результат на тесте {round(best_result, 3)}")
+        ax[1].plot(self.error_train["mae"], "g", label="MAE обучение")
+        ax[1].plot(self.error_test["mae"], "b", label="MAE тест")
+        ax[1].legend(loc="best")
+
+        ax[0].set_xlabel("Эпохи обучения")
+        ax[0].set_ylabel("Ошибка MSE, дБ")
+        ax[0].set_title(f"График MSE")
+
+        ax[1].set_xlabel("Эпохи обучения")
+        ax[1].set_ylabel("Ошибка MAE")
+        ax[1].set_title(f"График MAE")
+
+        plt.subplots_adjust(hspace=0.3)
+
+        if save == True:
+            plt.savefig(path, dpi=300)
+
+        plt.show()
 
 def mae(vec_pred, vec_true):
     err = 0
@@ -212,7 +242,11 @@ def mae(vec_pred, vec_true):
     return err / len(vec_pred)
 
 def mse(vec_pred, vec_true):
-    pass
+    err = 0
+    for j in range(vec_true.shape[0]):
+        err += np.sqrt(np.power(vec_true[j] - vec_pred[j], 2))
+        
+    return err / len(vec_pred)
     
 def batch_expansion(x_train, x_test, y_train, y_test):
     if len(x_test) == len(x_train):
