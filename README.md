@@ -1,7 +1,8 @@
 # LevenbergLib
 Library for research and teaching of neural networks using second-order methods
 
-1. Test lib: python.exe test.py
+For testing lib: 
+`python.exe test.py`
 
 TODO:
 1. Format this Readme (add markdown)
@@ -11,9 +12,12 @@ TODO:
 5. Add stop criteria into settings
 6. Add more metrics for track
 
+
+# LevenbergLib
 Библиотека для исследования и обучения нейронных сетей методами второго порядка
 
-1. Для тестирования библиотеки: python.exe test.py
+Для тестирования библиотеки: 
+`python.exe test.py`
 
 Список задач:
 1. Отформатировать данное readme (добавить markdown-разметку)
