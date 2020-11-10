@@ -2,25 +2,32 @@ from pathlib import Path
 
 import pandas as pd
 from somlib import NeuralNet
+from utils.hyperparametres import find_hyperparametres
 
 path = Path(__file__).parent / "data"
 
 train_data = pd.read_csv(path / "train.csv")
 valid_data = pd.read_csv(path / "test.csv")
 
+input_len = len(train_data)
+output_len = len(train_data.columns) - 5
+
+# Настройки гиперпараметров
+settings_hyperparametres = find_hyperparametres(input_len, 5, output_len)
+
 # Архитектура ИНС
 architecture = {
-    "l1": {"type": "fully_conneted", "neurons": 28, "activation": "sigmoid"},
-    "l2": {"type": "fully_conneted", "neurons": 12, "activation": "tanh"},
+    "l1": {"type": "fully_conneted", "neurons": settings_hyperparametres["neurons_mid"][0], "activation": "sigmoid"},
+    "l2": {"type": "fully_conneted", "neurons": settings_hyperparametres["neurons_mid"][1], "activation": "tanh"},
     "out": {"type": "out", "neurons": 5, "activation": "softmax"},
 }
 
 # Настройки обучения
 settings = {
     "outs": 5,
-    "input_len": len(train_data),
+    "input_len": input_len,
     "architecture": architecture,
-    "inputs": len(train_data.columns) - 5,
+    "inputs": output_len,
     "activation": "sigmoid",
 }
 
@@ -34,7 +41,7 @@ nn.fit_lm(
     x_valid=valid_data.values[:, :-5],
     y_valid=valid_data.values[:, -5:],
     mu_init=5.0,
-    min_error=2.083e-4,
+    min_error=settings_hyperparametres["stop"],
     max_steps=100,
     mu_multiply=10,
     mu_divide=10,
