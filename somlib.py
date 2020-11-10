@@ -20,7 +20,7 @@ class NeuralNet:
         self.settings = settings
 
         self.outs = settings["outs"]
-        self.m = settings["input_len"]
+        self.m = settings["batch_size"]
 
         self.x = tf.compat.v1.placeholder(tf.float64, shape=[self.m, settings["inputs"]])
         self.y = tf.compat.v1.placeholder(tf.float64, shape=[self.m, settings["outs"]])
@@ -163,15 +163,21 @@ class NeuralNet:
 
         # Приведение батчей к одной форме [shape]
         self.min_error = min_error
-        len_of_test = len(x_valid)
-        len_of_train = len(x_train)
-        x_train, x_valid, y_train, y_valid = batch_expansion(x_train, x_valid, y_train, y_valid)
+        if len(x_train) <= self.settings["batch_size"] and len(y_valid) <= self.settings["batch_size"]:
+            len_of_test = len(x_valid)
+            len_of_train = len(x_train)
+            x_train, x_valid, y_train, y_valid = batch_expansion(x_train, x_valid, y_train, y_valid)
 
-        train_dict = {self.x: x_train, self.y: y_train}
+        else:
+            len_of_test = len(x_valid)
+            len_of_train = len(x_train)
+            x_train, x_valid, y_train, y_valid = self.get_batches(x_train, x_valid, y_train, y_valid)
 
-        valid_dict = {self.x: x_valid, self.y: y_valid}
+        #train_dict = {self.x: x_train, self.y: y_train}
 
-        train_dict[self.mu] = np.array([mu_init])
+        #valid_dict = {self.x: x_valid, self.y: y_valid}
+
+        train_dict = {self.mu : np.array([mu_init])}
 
         self.error_train = {"mse": [], "mae": []}
         self.error_test = {"mse": [], "mae": []}
@@ -191,6 +197,7 @@ class NeuralNet:
                     error_string += f"{err}: {self.error_test[err][-1]:.2e} "
                 print(f"LM step: {step}, mu: {train_dict[self.mu][0]:.2e}, {error_string}")
 
+            # Start batch
             self.session.run(self.save_parms)
             self.session.run(self.save_jTj_jTr, train_dict)
             success = False
@@ -225,7 +232,6 @@ class NeuralNet:
             )
 
             if not success:
-
                 error_string = ""
                 for err in self.error_train.keys():
                     error_string += f"{err}: {self.error_train[err][-1]:.2e} "
@@ -246,7 +252,7 @@ class NeuralNet:
             self.x: np.vstack(
                 (
                     data_to_predict,
-                    np.zeros(shape=(self.settings["input_len"] - len(data_to_predict), data_to_predict.shape[1])),
+                    np.zeros(shape=(self.settings["batch_size"] - len(data_to_predict), data_to_predict.shape[1])),
                 )
             )
         }
@@ -293,6 +299,61 @@ class NeuralNet:
 
         plt.show()
 
+    def get_batches(self, x_train, x_test, y_train, y_test):
+        
+        x_train_count = math.floor(len(x_train) / self.settings["batch_size"]) + 1
+        x_test_count = math.floor(len(x_test) / self.settings["batch_size"]) + 1
+        x_train_batches = []
+        x_test_batches = []
+        y_train_batches = []
+        y_test_batches = []
+
+        for i in range(x_train_count - 1):
+            x_train_batches.append(
+                x_train[i * self.settings["batch_size"] : (i + 1) * self.settings["batch_size"]]
+            )
+            y_train_batches.append(
+                y_train[i * self.settings["batch_size"] : (i + 1) * self.settings["batch_size"]]
+            )
+        x_train_batches.append(np.vstack([
+            x_train[(x_train_count - 1) * self.settings["batch_size"] : ],
+            np.zeros(shape=([
+                self.settings["batch_size"] - len(x_train[(x_train_count - 1) * self.settings["batch_size"] : 
+            ])] + list(x_train.shape[1:])))
+        ]))
+        y_train_batches.append(np.vstack([
+            y_train[(x_train_count - 1) * self.settings["batch_size"] : ],
+            np.zeros(shape=([
+                self.settings["batch_size"] - len(y_train[(x_train_count - 1) * self.settings["batch_size"] : 
+            ])] + list(y_train.shape[1:])))
+        ]))
+
+        for i in range(x_test_count - 1):
+            x_test_batches.append(
+                x_test[i * self.settings["batch_size"] : (i + 1) * self.settings["batch_size"]]
+            )
+            y_test_batches.append(
+                y_test[i * self.settings["batch_size"] : (i + 1) * self.settings["batch_size"]]
+            )
+        x_test_batches.append(np.vstack([
+            x_test[(x_test_count - 1) * self.settings["batch_size"] : ],
+            np.zeros(shape=([
+                self.settings["batch_size"] - len(x_test[(x_test_count - 1) * self.settings["batch_size"] : 
+            ])] + list(x_test.shape[1:])))
+        ]))
+        y_test_batches.append(np.vstack([
+            y_test[(x_test_count - 1) * self.settings["batch_size"] : ],
+            np.zeros(shape=([
+                self.settings["batch_size"] - len(y_test[(x_test_count - 1) * self.settings["batch_size"] : 
+            ])] + list(y_test.shape[1:])))
+        ]))
+
+        return (
+            np.asarray(x_train_batches), 
+            np.asarray(x_test_batches), 
+            np.asarray(y_train_batches), 
+            np.asarray(y_test_batches)
+        )
 
 def mae(vec_pred, vec_true):
     err = 0
@@ -312,14 +373,29 @@ def mse(vec_pred, vec_true):
 
 def batch_expansion(x_train, x_test, y_train, y_test):
     if len(x_test) == len(x_train):
-        return x_train, x_test, y_train, y_test
+        return (
+            x_train.reshape([1] + list(x_train.shape)), 
+            x_test.reshape([1] + list(x_test.shape)), 
+            y_train.reshape([1] + list(y_train.shape)), 
+            y_test.reshape([1] + list(y_test.shape))
+        )
 
     if len(x_test) < len(x_train):
-        x_test = np.vstack((x_test, np.zeros(shape=(len(x_train) - len(x_test), x_test.shape[1]))))
-        y_test = np.vstack((y_test, np.zeros(shape=(len(y_train) - len(y_test), y_test.shape[1]))))
-        return x_train, x_test, y_train, y_test
+        x_test = np.vstack((x_test, np.zeros(shape=([len(x_train) - len(x_test)] + list(x_test.shape[1:])))))
+        y_test = np.vstack((y_test, np.zeros(shape=([len(y_train) - len(y_test)] + list(y_test.shape[1:])))))
+        return (
+            x_train.reshape([1] + list(x_train.shape)), 
+            x_test.reshape([1] + list(x_test.shape)), 
+            y_train.reshape([1] + list(y_train.shape)), 
+            y_test.reshape([1] + list(y_test.shape))
+        )
 
     if len(y_test) > len(x_train):
-        x_train = np.vstack((x_train, np.zeros(shape=(len(x_test) - len(x_train), x_train.shape[1]))))
-        y_train = np.vstack((y_train, np.zeros(shape=(len(y_test) - len(y_train), y_train.shape[1]))))
-        return x_train, x_test, y_train, y_test
+        x_train = np.vstack((x_train, np.zeros(shape=([len(x_test) - len(x_train)] + list(x_train.shape[1:])))))
+        y_train = np.vstack((y_train, np.zeros(shape=([len(y_test) - len(y_train)] + list(y_train.shape[1:])))))
+        return (
+            x_train.reshape([1] + list(x_train.shape)), 
+            x_test.reshape([1] + list(x_test.shape)), 
+            y_train.reshape([1] + list(y_train.shape)), 
+            y_test.reshape([1] + list(y_test.shape))
+        )
