@@ -18,7 +18,7 @@ architecture = {
 # Настройки обучения
 settings = {
     "outs": 5,
-    "input_len": len(train_data),
+    "batch_size": 50,
     "architecture": architecture,
     "inputs": len(train_data.columns) - 5,
     "activation": "sigmoid",
