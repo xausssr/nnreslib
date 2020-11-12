@@ -189,7 +189,7 @@ class NeuralNet:
             step += 1
 
             for batch in range(len(mu_track)):
-                if mu_track[batch] > 1e100:
+                if mu_track[batch] > 1e24:
                     mu_track[batch] = mu_init
 
             if step % int(max_steps / 5) == 0 and verbose:
@@ -201,11 +201,10 @@ class NeuralNet:
                 print(f"LM step: {step}, mu: {train_dict[self.mu][0]:.2e}, {error_string}")
 
             # Start batch
-            mae_train = 0
-            current_loss_batch = self.session.run(
-                self.loss, {self.x : x_train[0], self.y : y_train[0], self.mu : np.asarray([mu_init])}
-            )
             for batch in range(len(x_train)):
+                current_loss_batch = self.session.run(
+                    self.loss, {self.x : x_train[batch], self.y : y_train[batch], self.mu : np.asarray([mu_init])}
+                )
                 train_dict = {self.mu : np.asarray([mu_track[batch]])}
                 train_dict[self.x] = x_train[batch]
                 train_dict[self.y] = y_train[batch]
@@ -228,6 +227,7 @@ class NeuralNet:
             self.error_train["mae"].append(mae_train)
             self.error_test["mse"].append(mse_test)
             self.error_test["mae"].append(mae_test)
+            current_loss = self.current_learn_loss(x_train, y_valid, np.asarray([mu_init]))
 
         print(f"LevMarq ended on: {step:},\tfinal loss: {self.error_train['mse'][-1]:.2e}\n")
         self.session.run(self.p)
