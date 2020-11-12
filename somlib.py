@@ -405,15 +405,15 @@ class NeuralNet:
             )
         x_test_batches.append(np.vstack([
             x_test[(x_test_count - 1) * self.settings["batch_size"] : ],
-            np.zeros(shape=([
-                self.settings["batch_size"] - len(x_test[(x_test_count - 1) * self.settings["batch_size"] : 
-            ])] + list(x_test.shape[1:])))
+            x_test[
+                len(x_test[(x_test_count - 1) * self.settings["batch_size"] : ]) : self.settings["batch_size"]
+            ]
         ]))
         y_test_batches.append(np.vstack([
             y_test[(x_test_count - 1) * self.settings["batch_size"] : ],
-            np.zeros(shape=([
-                self.settings["batch_size"] - len(y_test[(x_test_count - 1) * self.settings["batch_size"] : 
-            ])] + list(y_test.shape[1:])))
+            y_test[
+                len(y_test[(x_test_count - 1) * self.settings["batch_size"] : ]) : self.settings["batch_size"]
+            ]
         ]))
 
         return (
