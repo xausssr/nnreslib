@@ -299,6 +299,7 @@ class NeuralNet:
         for batch in range(1, len(x_pred_batches)):
             predict_dict = {self.x: x_pred_batches[batch]}
             preds = np.vstack([preds, self.session.run(self.y_hat, predict_dict)])
+
         if raw:
             return preds[:init_len]
 
@@ -375,18 +376,18 @@ class NeuralNet:
             y_train_batches.append(
                 y_train[i * self.settings["batch_size"] : (i + 1) * self.settings["batch_size"]]
             )
-        # Замкнуть батчи!    
+   
         x_train_batches.append(np.vstack([
             x_train[(x_train_count - 1) * self.settings["batch_size"] : ],
-            np.zeros(shape=([
-                self.settings["batch_size"] - len(x_train[(x_train_count - 1) * self.settings["batch_size"] : 
-            ])] + list(x_train.shape[1:])))
+            x_train[
+                len(x_train[(x_train_count - 1) * self.settings["batch_size"] : ]) : self.settings["batch_size"]
+            ]
         ]))
         y_train_batches.append(np.vstack([
             y_train[(x_train_count - 1) * self.settings["batch_size"] : ],
-            np.zeros(shape=([
-                self.settings["batch_size"] - len(y_train[(x_train_count - 1) * self.settings["batch_size"] : 
-            ])] + list(y_train.shape[1:])))
+            y_train[
+                len(y_train[(x_train_count - 1) * self.settings["batch_size"] : ]) : self.settings["batch_size"]
+            ]
         ]))
 
         for i in range(x_test_count - 1):
