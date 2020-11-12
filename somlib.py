@@ -175,6 +175,12 @@ class NeuralNet:
         self.error_train = {"mse": [], "mae": []}
         self.error_test = {"mse": [], "mae": []}
 
+        mse_train, mae_train, mse_test, mae_test = self.get_errors(x_train, y_train, x_valid, y_valid, mu_init)
+        self.error_train["mse"].append(mse_train)
+        self.error_train["mae"].append(mae_train)
+        self.error_test["mse"].append(mse_test)
+        self.error_test["mae"].append(mae_test)
+
         step = 0
 
         current_loss = self.current_learn_loss(x_train, y_train, np.array([mu_init]))
@@ -215,40 +221,52 @@ class NeuralNet:
                     mu_track[batch] *= mu_multiply
                     self.session.run(self.restore_parms)
                 
-                #TODO into separate function!
-                y_pred = self.session.run(self.y_hat, train_dict)
-                mae_train += mae(
-                        np.argmax(np.asarray(y_pred)[:len_of_train], axis=1),
-                        np.argmax(np.asarray(y_train)[batch][:len_of_train], axis=1),
-                )
+                    # End batch
             
-            # End batch
-            (mse_test, mae_test) = (0, 0)
-            for batch in range(len(x_valid)):
-                valid_dict = {self.x : x_valid[batch], self.y : y_valid[batch], self.mu : train_dict[self.mu]}
-                y_pred_valid = self.session.run(self.y_hat, valid_dict)                         
-                mse_test += mse(
-                    np.asarray(y_pred_valid)[:len_of_test].ravel(), 
-                    np.asarray(y_valid)[batch][:len_of_test].ravel()
-                )
-                mae_test += mae(
-                        np.argmax(np.asarray(y_pred_valid)[:len_of_test], axis=1),
-                        np.argmax(np.asarray(y_valid)[batch][:len_of_test], axis=1),
-                )
-            
-            current_loss = self.current_learn_loss(x_train, y_train, train_dict[self.mu])
-            mae_train /= len(x_train)
-            mse_test /= len(x_valid)
-            mae_test /= len(x_valid)
-
-            self.error_train["mse"].append(current_loss)
+            mse_train, mae_train, mse_test, mae_test = self.get_errors(x_train, y_train, x_valid, y_valid, mu_init)
+            self.error_train["mse"].append(mse_train)
             self.error_train["mae"].append(mae_train)
             self.error_test["mse"].append(mse_test)
             self.error_test["mae"].append(mae_test)
 
-        print(f"LevMarq ended on: {step:},\tfinal loss: {current_loss:.2e}\n")
+        print(f"LevMarq ended on: {step:},\tfinal loss: {self.error_train['mse'][-1]:.2e}\n")
         self.session.run(self.p)
 
+    def get_errors(self, x_train, y_train, x_valid, y_valid, mu):
+        (mse_train, mae_train) = (0, 0)
+               
+        for batch in range(len(x_train)):
+            train_dict = {self.x : x_train[batch], self.y : y_train[batch], self.mu : np.asarray([mu])}
+            y_pred = self.session.run(self.y_hat, train_dict)
+            mse_train += mae(
+                np.asarray(y_pred).ravel(),
+                np.asarray(y_train)[batch].ravel(),
+            )
+            mae_train += mae(
+                    np.argmax(np.asarray(y_pred), axis=1),
+                    np.argmax(np.asarray(y_train)[batch], axis=1),
+            )
+
+        (mse_test, mae_test) = (0, 0)
+        for batch in range(len(x_valid)):
+            valid_dict = {self.x : x_valid[batch], self.y : y_valid[batch], self.mu : np.asarray([mu])}
+            y_pred_valid = self.session.run(self.y_hat, valid_dict)                         
+            mse_test += mse(
+                np.asarray(y_pred_valid).ravel(), 
+                np.asarray(y_valid)[batch].ravel()
+            )
+            mae_test += mae(
+                    np.argmax(np.asarray(y_pred_valid), axis=1),
+                    np.argmax(np.asarray(y_valid)[batch], axis=1),
+            )
+        
+        return (
+            mse_train / len(x_train),
+            mae_train / len(x_train),
+            mse_test / len(x_valid),
+            mae_test / len(x_valid),
+        )
+    
     def current_learn_loss(self, x_train, y_train, mu):
         loss = 0
         for batch in range(len(x_train)):
