@@ -168,7 +168,9 @@ class NeuralNet:
             len_of_train = len(x_train)
             x_train, x_valid, y_train, y_valid = self.get_batches(x_train, x_valid, y_train, y_valid)
 
-        mu_track = [mu_init for x in range(len(x_train))]
+        mu_track = {}
+        for i in range(len(x_train)):
+            mu_track[i] = mu_init
 
         print("debug", x_train.shape, y_train.shape, x_valid.shape, y_valid.shape)
 
@@ -189,7 +191,7 @@ class NeuralNet:
             step += 1
 
             for batch in range(len(mu_track)):
-                if mu_track[batch] > 1e24:
+                if mu_track[batch] > 1e20 or mu_track[batch] < 1e-20:
                     mu_track[batch] = mu_init
 
             if step % int(max_steps / 5) == 0 and verbose:
@@ -210,15 +212,19 @@ class NeuralNet:
                 train_dict[self.y] = y_train[batch]
                 self.session.run(self.save_parms)
                 self.session.run(self.save_jTj_jTr, train_dict)
-                for i in range(m_into_epoch):
+                sub_epoch = 0
+                while sub_epoch < m_into_epoch:
                     self.session.run(self.lm, train_dict)
                     new_loss = self.session.run(self.loss, train_dict)
+                    sub_epoch += 1
                     if new_loss < current_loss_batch:
-                        mu_track[batch] /= mu_divide
-                        success = True
-                        break
-                    mu_track[batch] *= mu_multiply
-                    self.session.run(self.restore_parms)
+                        mu_track[batch] = mu_track[batch] / mu_divide
+                        train_dict[self.mu] = np.asarray([mu_track[batch]])
+                        sub_epoch = m_into_epoch + 1
+                    else:
+                        mu_track[batch] = mu_track[batch] * mu_multiply
+                        train_dict[self.mu] = np.asarray([mu_track[batch]])
+                        self.session.run(self.restore_parms)
                 
                     # End batch
             
@@ -227,7 +233,7 @@ class NeuralNet:
             self.error_train["mae"].append(mae_train)
             self.error_test["mse"].append(mse_test)
             self.error_test["mae"].append(mae_test)
-            current_loss = self.current_learn_loss(x_train, y_valid, np.asarray([mu_init]))
+            current_loss = self.current_learn_loss(x_train, y_train, np.asarray([mu_init]))
 
         print(f"LevMarq ended on: {step:},\tfinal loss: {self.error_train['mse'][-1]:.2e}\n")
         self.session.run(self.p)
