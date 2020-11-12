@@ -20,8 +20,8 @@ class NeuralNet:
         self.outs = settings["outs"]
         self.m = settings["batch_size"]
 
-        self.x = tf.compat.v1.placeholder(tf.float64, shape=[self.m, settings["inputs"]])
-        self.y = tf.compat.v1.placeholder(tf.float64, shape=[self.m, settings["outs"]])
+        self.x = tf.compat.v1.placeholder(tf.float64, shape=[self.m, settings["inputs"]], name="input_data")
+        self.y = tf.compat.v1.placeholder(tf.float64, shape=[self.m, settings["outs"]], name="input_labels")
 
         self.nn = []
         for i in self.settings["architecture"].keys():
@@ -47,7 +47,7 @@ class NeuralNet:
         # Граф для прямого вычисления
         # TODO Другие инициалезеры
         self.initializer = tf.compat.v1.initializers.lecun_uniform()
-        self.p = tf.Variable(self.initializer([self.neurons_cnt], dtype=tf.float64))
+        self.p = tf.Variable(self.initializer([self.neurons_cnt], dtype=tf.float64), "parameters_of_nn")
         self.parms = tf.split(self.p, self.sizes, 0)
         for i in range(len(self.parms)):
             self.parms[i] = tf.reshape(self.parms[i], self.shapes[i])
@@ -69,11 +69,8 @@ class NeuralNet:
         self.loss = tf.reduce_mean(tf.square(self.r))
 
         # Граф для Левенберга-Марквардта
-        # TODO Добавить возможность изменения критерия из настроек
-        self.error_estimate = 10 * math.log10(1 / (4 * self.m * int(self.outs)))
-
         self.opt = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=1)
-        self.mu = tf.compat.v1.placeholder(tf.float64, shape=[1])
+        self.mu = tf.compat.v1.placeholder(tf.float64, shape=[1], name="mu")
         self.p_store = tf.Variable(tf.zeros([self.neurons_cnt], dtype=tf.float64))
         self.save_parms = tf.compat.v1.assign(self.p_store, self.p)
         self.restore_parms = tf.compat.v1.assign(self.p, self.p_store)
@@ -171,18 +168,16 @@ class NeuralNet:
             len_of_train = len(x_train)
             x_train, x_valid, y_train, y_valid = self.get_batches(x_train, x_valid, y_train, y_valid)
 
-        #train_dict = {self.x: x_train, self.y: y_train}
+        mu_track = [mu_init for x in range(len(x_train))]
 
-        #valid_dict = {self.x: x_valid, self.y: y_valid}
-
-        train_dict = {self.mu : np.array([mu_init])}
+        print("debug", x_train.shape, y_train.shape, x_valid.shape, y_valid.shape)
 
         self.error_train = {"mse": [], "mae": []}
         self.error_test = {"mse": [], "mae": []}
 
         step = 0
 
-        current_loss = self.session.run(self.loss, train_dict)
+        current_loss = self.current_learn_loss(x_train, y_train, np.array([mu_init]))
 
         while current_loss > min_error and step < max_steps:
             step += 1
@@ -190,87 +185,124 @@ class NeuralNet:
             if step % int(max_steps / 5) == 0 and verbose:
                 error_string = ""
                 for err in self.error_train.keys():
-                    error_string += f"{err}: {self.error_train[err][-1]:.2e} "
+                    error_string += f"train {err}: {self.error_train[err][-1]:.2e} "
                 for err in self.error_test.keys():
-                    error_string += f"{err}: {self.error_test[err][-1]:.2e} "
+                    error_string += f"test {err}: {self.error_test[err][-1]:.2e} "
                 print(f"LM step: {step}, mu: {train_dict[self.mu][0]:.2e}, {error_string}")
 
             # Start batch
-            self.session.run(self.save_parms)
-            self.session.run(self.save_jTj_jTr, train_dict)
-            success = False
-            for i in range(m_into_epoch):
-                self.session.run(self.lm, train_dict)
-                new_loss = self.session.run(self.loss, train_dict)
-                if new_loss < current_loss:
-                    train_dict[self.mu] /= mu_divide
-                    current_loss = new_loss
-                    success = True
-                    break
-                train_dict[self.mu] *= mu_multiply
-                self.session.run(self.restore_parms)
+            mae_train = 0
+            current_loss_batch = self.session.run(
+                self.loss, {self.x : x_train[0], self.y : y_train[0], self.mu : np.asarray([mu_init])}
+            )
+            for batch in range(len(x_train)):
+                train_dict = {self.mu : np.asarray([mu_track[batch]])}
+                train_dict[self.x] = x_train[batch]
+                train_dict[self.y] = y_train[batch]
+                self.session.run(self.save_parms)
+                self.session.run(self.save_jTj_jTr, train_dict)
+                for i in range(m_into_epoch):
+                    self.session.run(self.lm, train_dict)
+                    new_loss = self.session.run(self.loss, train_dict)
+                    if new_loss < current_loss_batch:
+                        mu_track[batch] /= mu_divide
+                        success = True
+                        break
+                    mu_track[batch] *= mu_multiply
+                    self.session.run(self.restore_parms)
+                
+                #TODO into separate function!
+                y_pred = self.session.run(self.y_hat, train_dict)
+                mae_train += mae(
+                        np.argmax(np.asarray(y_pred)[:len_of_train], axis=1),
+                        np.argmax(np.asarray(y_train)[batch][:len_of_train], axis=1),
+                )
+            
+            # End batch
+            (mse_test, mae_test) = (0, 0)
+            for batch in range(len(x_valid)):
+                valid_dict = {self.x : x_valid[batch], self.y : y_valid[batch], self.mu : train_dict[self.mu]}
+                y_pred_valid = self.session.run(self.y_hat, valid_dict)                         
+                mse_test += mse(
+                    np.asarray(y_pred_valid)[:len_of_test].ravel(), 
+                    np.asarray(y_valid)[batch][:len_of_test].ravel()
+                )
+                mae_test += mae(
+                        np.argmax(np.asarray(y_pred_valid)[:len_of_test], axis=1),
+                        np.argmax(np.asarray(y_valid)[batch][:len_of_test], axis=1),
+                )
+            
+            mae_train /= len(x_train)
+            mse_test /= len(x_valid)
+            mae_test /= len(x_valid)
 
             self.error_train["mse"].append(current_loss)
-            y_pred_valid = self.session.run(self.y_hat, valid_dict)
-            y_pred = self.session.run(self.y_hat, train_dict)
-            self.error_train["mae"].append(
-                mae(
-                    np.argmax(np.asarray(y_pred)[:len_of_train], axis=1),
-                    np.argmax(np.asarray(y_train)[:len_of_train], axis=1),
-                )
-            )
-            self.error_test["mse"].append(
-                mse(np.asarray(y_pred_valid)[:len_of_test].ravel(), np.asarray(y_valid)[:len_of_test].ravel())
-            )
-            self.error_test["mae"].append(
-                mae(
-                    np.argmax(np.asarray(y_pred_valid)[:len_of_test], axis=1),
-                    np.argmax(np.asarray(y_valid)[:len_of_test], axis=1),
-                )
-            )
-
-            if not success:
-                error_string = ""
-                for err in self.error_train.keys():
-                    error_string += f"{err}: {self.error_train[err][-1]:.2e} "
-                for err in self.error_test.keys():
-                    error_string += f"{err}: {self.error_test[err][-1]:.2e} "
-
-                print(f"LM failed to improve, on step {step:}, {error_string}\n")
-                self.session.run(self.p)
-                return
+            self.error_train["mae"].append(mae_train)
+            self.error_test["mse"].append(mse_test)
+            self.error_test["mae"].append(mae_test)
 
         print(f"LevMarq ended on: {step:},\tfinal loss: {current_loss:.2e}\n")
         self.session.run(self.p)
 
+    def current_learn_loss(self, x_train, y_train, mu):
+        loss = 0
+        for batch in range(len(x_train)):
+            train_dict = {self.x : x_train[batch], self.y : y_train[batch], self.mu : mu}
+            loss += self.session.run(self.loss, train_dict)
+        return loss / len(x_train)
+
     def predict(self, data_to_predict, raw=True):
 
         init_len = len(data_to_predict)
-        predict_dict = {
-            self.x: np.vstack(
-                (
-                    data_to_predict,
-                    np.zeros(shape=(self.settings["batch_size"] - len(data_to_predict), data_to_predict.shape[1])),
-                )
-            )
-        }
-        preds = self.session.run(self.y_hat, predict_dict)[:init_len]
-        if raw:
-            return preds
-        return np.argmax(preds, axis=1)
 
-    def plot_lw(self, path, save=False):
+        x_pred_count = math.floor(len(data_to_predict) / self.settings["batch_size"]) + 1
+        x_pred_batches = []
+
+        for i in range(x_pred_count - 1):
+            x_pred_batches.append(
+                data_to_predict[i * self.settings["batch_size"] : (i + 1) * self.settings["batch_size"]]
+            )
+        
+        x_pred_batches.append(np.vstack([
+            data_to_predict[(x_pred_count - 1) * self.settings["batch_size"] : ],
+            np.zeros(shape=([
+                self.settings["batch_size"] - len(data_to_predict[(x_pred_count - 1) * self.settings["batch_size"] : 
+            ])] + list(data_to_predict.shape[1:])))
+        ]))
+
+        predict_dict = {self.x: x_pred_batches[0]}
+        preds = self.session.run(self.y_hat, predict_dict)
+
+        for batch in range(1, len(x_pred_batches)):
+            predict_dict = {self.x: x_pred_batches[batch]}
+            preds = np.vstack([preds, self.session.run(self.y_hat, predict_dict)])
+        if raw:
+            return preds[:init_len]
+
+        return np.argmax(preds[:init_len], axis=1)
+
+    def plot_lw(self, path, save=False, logscale=True):
 
         best_result = np.min(self.error_test["mae"])
 
         plt.rcParams.update({"font.size": 15})
         fig, ax = plt.subplots(2, 1)
 
-        ax[0].plot(
-            [10 * np.log10(float(self.min_error))] * int(len(self.error_train["mse"])), "r--", label="Критерий останова"
-        )
-        ax[0].plot(10 * np.log10(self.error_train["mse"]), "g", label="MSE обучение")
-        ax[0].plot(10 * np.log10(self.error_test["mse"]), "b", label="MSE тест")
+        if logscale == True:
+            ax[0].plot(
+                [10 * np.log10(float(self.min_error))] * int(len(self.error_train["mse"])), "r--", label="Критерий останова"
+            )
+            ax[0].plot(10 * np.log10(self.error_train["mse"]), "g", label="MSE обучение")
+            ax[0].plot(10 * np.log10(self.error_test["mse"]), "b", label="MSE тест")
+            ax[0].set_ylabel("Ошибка MSE, дБ")
+        else:
+            ax[0].plot(
+                [float(self.min_error)] * int(len(self.error_train["mse"])), "r--", label="Критерий останова"
+            )
+            ax[0].plot(self.error_train["mse"], "g", label="MSE обучение")
+            ax[0].plot(self.error_test["mse"], "b", label="MSE тест")
+            ax[0].set_ylabel("Ошибка MSE")
+
         ax[0].legend(loc="best")
 
         ax[1].plot(
@@ -283,7 +315,6 @@ class NeuralNet:
         ax[1].legend(loc="best")
 
         ax[0].set_xlabel("Эпохи обучения")
-        ax[0].set_ylabel("Ошибка MSE, дБ")
         ax[0].set_title("График MSE")
 
         ax[1].set_xlabel("Эпохи обучения")
