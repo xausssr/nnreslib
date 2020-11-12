@@ -35,7 +35,7 @@ nn.fit_lm(
     y_valid=valid_data.values[:, -5:],
     mu_init=5.0,
     min_error=2.083e-4,
-    max_steps=1000,
+    max_steps=100,
     mu_multiply=5,
     mu_divide=5,
     m_into_epoch=5,
