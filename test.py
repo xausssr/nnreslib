@@ -36,8 +36,8 @@ nn.fit_lm(
     mu_init=5.0,
     min_error=2.083e-4,
     max_steps=100,
-    mu_multiply=2,
-    mu_divide=2,
+    mu_multiply=5,
+    mu_divide=5,
     m_into_epoch=5,
     verbose=True,
 )

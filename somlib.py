@@ -182,6 +182,10 @@ class NeuralNet:
         while current_loss > min_error and step < max_steps:
             step += 1
 
+            for batch in range(len(mu_track)):
+                if mu_track[batch] > 1e100:
+                    mu_track[batch] = mu_init
+
             if step % int(max_steps / 5) == 0 and verbose:
                 error_string = ""
                 for err in self.error_train.keys():
@@ -232,6 +236,7 @@ class NeuralNet:
                         np.argmax(np.asarray(y_valid)[batch][:len_of_test], axis=1),
                 )
             
+            current_loss = self.current_learn_loss(x_train, y_train, train_dict[self.mu])
             mae_train /= len(x_train)
             mse_test /= len(x_valid)
             mae_test /= len(x_valid)
@@ -330,12 +335,20 @@ class NeuralNet:
 
     def get_batches(self, x_train, x_test, y_train, y_test):
         
-        x_train_count = math.floor(len(x_train) / self.settings["batch_size"]) + 1
-        x_test_count = math.floor(len(x_test) / self.settings["batch_size"]) + 1
+        if len(x_train) % self.settings["batch_size"] == 0:
+            x_train_count = math.floor(len(x_train) / self.settings["batch_size"])
+            x_test_count = math.floor(len(x_test) / self.settings["batch_size"])
+        else:
+            x_train_count = math.floor(len(x_train) / self.settings["batch_size"]) + 1
+            x_test_count = math.floor(len(x_test) / self.settings["batch_size"]) + 1
+        
         x_train_batches = []
         x_test_batches = []
         y_train_batches = []
         y_test_batches = []
+
+        x_train, y_train = self.shuffle_input_data(x_train, y_train) 
+        x_test, y_test = self.shuffle_input_data(x_test, y_test)
 
         for i in range(x_train_count - 1):
             x_train_batches.append(
@@ -344,6 +357,7 @@ class NeuralNet:
             y_train_batches.append(
                 y_train[i * self.settings["batch_size"] : (i + 1) * self.settings["batch_size"]]
             )
+        # Замкнуть батчи!    
         x_train_batches.append(np.vstack([
             x_train[(x_train_count - 1) * self.settings["batch_size"] : ],
             np.zeros(shape=([
@@ -383,6 +397,11 @@ class NeuralNet:
             np.asarray(y_train_batches), 
             np.asarray(y_test_batches)
         )
+
+    def shuffle_input_data(self, a, b):
+        assert len(a) == len(b)
+        p = np.random.permutation(len(a))
+        return a[p], b[p]
 
 def mae(vec_pred, vec_true):
     err = 0
