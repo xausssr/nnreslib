@@ -18,7 +18,7 @@ architecture = {
 # Настройки обучения
 settings = {
     "outs": 5,
-    "input_len": len(train_data),
+    "batch_size": 120,
     "architecture": architecture,
     "inputs": len(train_data.columns) - 5,
     "activation": "sigmoid",
@@ -36,14 +36,14 @@ nn.fit_lm(
     mu_init=5.0,
     min_error=2.083e-4,
     max_steps=100,
-    mu_multiply=10,
-    mu_divide=10,
-    m_into_epoch=10,
+    mu_multiply=5,
+    mu_divide=5,
+    m_into_epoch=5,
     verbose=True,
 )
 
 # Отрисовка обучения ИНС
-nn.plot_lw(None, save=False)
+nn.plot_lw(None, save=False, logscale=False)
 
 print(nn.predict(valid_data.values[:, :-5], raw=True)[:10])
 print(nn.predict(valid_data.values[:, :-5], raw=False)[:10])
