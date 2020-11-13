@@ -20,9 +20,31 @@ class NeuralNet:
         self.outs = settings["outs"]
         self.m = settings["batch_size"]
 
-        self.x = tf.compat.v1.placeholder(tf.float64, shape=[self.m, settings["inputs"]], name="input_data")
-        self.y = tf.compat.v1.placeholder(tf.float64, shape=[self.m, settings["outs"]], name="input_labels")
+        self.x = tf.compat.v1.placeholder(tf.float64, shape=[None] + settings["inputs"], name="input_data")
+        self.y = tf.compat.v1.placeholder(tf.float64, shape=[None] + [settings["outs"]], name="input_labels")
 
+        # Сверточная часть
+        # Получаем веса из architecture
+        self.cl_weights = {}
+        self.cl_biases = {}
+
+        for i in self.settings["architecture"].keys():
+            if (
+                self.settings["architecture"][i]["type"] == "convolution" or 
+                self.settings["architecture"][i]["type"] == "flatten" 
+            ):
+                self.cl_weights[i] = tf.compat.v1.get_variable(
+                    i, 
+                    shape=self.settings["architecture"][i]["shape"], 
+                    initializer=tf.compat.v1.initializers.lecun_uniform()
+                )
+                self.cl_biases[i] = tf.compat.v1.get_variable(
+                    str(i) + "_b",
+                    shape=(self.settings["architecture"][i]["shape"][-1]),
+                    initializer=tf.compat.v1.initializers.lecun_uniform()
+                )
+
+        # Полносвязная часть
         self.nn = []
         for i in self.settings["architecture"].keys():
             if (
@@ -31,9 +53,11 @@ class NeuralNet:
             ):
                 self.nn.append(self.settings["architecture"][i]["neurons"])
 
-        self.st = [self.settings["inputs"]] + self.nn
+        if len(self.cl_weights.keys()) > 0:
+            self.st = [self.cl_weights[list(self.cl_weights.keys())[-1]].get_shape().as_list()[0]] + self.nn
+        else:
+            self.st = self.settings["inputs"] + self.nn
 
-        # Полносвязная часть
         self.sizes = []
         self.shapes = []
         for i in range(1, len(self.nn) + 1):
@@ -56,6 +80,13 @@ class NeuralNet:
 
         # TODO Перепсать под два класса сетей СНС и ПИНС
         self.y_hat = self.x
+        if len(self.cl_weights.keys()) > 0:
+            for cl_layer in self.cl_weights.keys():
+                if cl_layer != list(self.cl_weights.keys())[-1]:
+                    self.y_hat = self.conv2d(self.y_hat, self.cl_weights[cl_layer], self.cl_biases[cl_layer])
+                    self.y_hat = tf.nn.max_pool(self.y_hat, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], fpadding='SAME')
+            self.y_hat = tf.reshape(y_hat, [-1, self.cl_weights[list(self.cl_weights.keys())[-1]].get_shape().as_list()[0]])
+        
         for i in range(len(self.nn)):
             self.activation = activations[
                 self.settings["architecture"][list(settings["architecture"].keys())[i]]["activation"]
@@ -65,9 +96,9 @@ class NeuralNet:
 
         self.r = self.y - self.y_hat
 
-        # TODO Переписать под любую ошибку
         self.loss = tf.reduce_mean(tf.square(self.r))
-
+        if len(self.cl_weights.keys()) > 0:
+            print("debug: CNN builded!")
         # Граф для Левенберга-Марквардта
         self.opt = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=1)
         self.mu = tf.compat.v1.placeholder(tf.float64, shape=[1], name="mu")
@@ -200,7 +231,7 @@ class NeuralNet:
                     error_string += f"train {err}: {self.error_train[err][-1]:.2e} "
                 for err in self.error_test.keys():
                     error_string += f"test {err}: {self.error_test[err][-1]:.2e} "
-                print(f"LM step: {step}, mu: {train_dict[self.mu][0]:.2e}, {error_string}")
+                print(f"LM step: {step}, {error_string}")
 
             # Start batch
             for batch in range(len(x_train)):
@@ -427,6 +458,13 @@ class NeuralNet:
         assert len(a) == len(b)
         p = np.random.permutation(len(a))
         return a[p], b[p]
+
+    # Вынес крнструктор слоев отдельно - так удобнее?
+    def conv2d(x, W, b, strides=[1, 1, 1, 1], padding='SAME'):
+        # Конструктор 2-мерного сверточного слоя, плюс смещения
+        x = tf.nn.conv2d(x, W, strides=strides, padding=padding)
+        x = tf.nn.bias_add(x, b)
+        return tf.nn.relu(x) 
 
 def mae(vec_pred, vec_true):
     err = 0
