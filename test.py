@@ -20,7 +20,7 @@ settings = {
     "outs": 5,
     "batch_size": 120,
     "architecture": architecture,
-    "inputs": len(train_data.columns) - 5,
+    "inputs": [len(train_data.columns) - 5],
     "activation": "sigmoid",
 }
 
@@ -35,7 +35,7 @@ nn.fit_lm(
     y_valid=valid_data.values[:, -5:],
     mu_init=5.0,
     min_error=2.083e-4,
-    max_steps=100,
+    max_steps=6,
     mu_multiply=5,
     mu_divide=5,
     m_into_epoch=5,
@@ -47,3 +47,26 @@ nn.plot_lw(None, save=False, logscale=False)
 
 print(nn.predict(valid_data.values[:, :-5], raw=True)[:10])
 print(nn.predict(valid_data.values[:, :-5], raw=False)[:10])
+
+print("\n\nТест сверточной сети на наборе MNIST")
+
+architecture = {
+    "cl1": {"type": "convolution", "shape":[3,3,1,32]},
+    "cl2": {"type": "convolution", "shape":[3,3,32,16]},
+    "cl3": {"type": "convolution", "shape":[3,3,64, 8]},
+    "fl": {"type": "flatten", "shape":[4*4*8]},
+    "l1": {"type": "fully_conneted", "neurons": 28, "activation": "sigmoid"},
+    "l2": {"type": "fully_conneted", "neurons": 12, "activation": "tanh"},
+    "out": {"type": "out", "neurons": 5, "activation": "softmax"},
+}
+
+settings = {
+    "outs": 10,
+    "batch_size": 120,
+    "architecture": architecture,
+    "inputs": [28,28,1],
+    "activation": "sigmoid",
+}
+
+# Построение CНС
+nn = NeuralNet(settings, verbose=True)
