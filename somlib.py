@@ -18,10 +18,10 @@ class NeuralNet:
         self.settings = settings
 
         self.outs = settings["outs"]
-        self.m = settings["input_len"]
+        self.m = settings["batch_size"]
 
-        self.x = tf.compat.v1.placeholder(tf.float64, shape=[self.m, settings["inputs"]])
-        self.y = tf.compat.v1.placeholder(tf.float64, shape=[self.m, settings["outs"]])
+        self.x = tf.compat.v1.placeholder(tf.float64, shape=[self.m, settings["inputs"]], name="input_data")
+        self.y = tf.compat.v1.placeholder(tf.float64, shape=[self.m, settings["outs"]], name="input_labels")
 
         self.nn = []
         for i in self.settings["architecture"].keys():
@@ -47,7 +47,7 @@ class NeuralNet:
         # Граф для прямого вычисления
         # TODO Другие инициалезеры
         self.initializer = tf.compat.v1.initializers.lecun_uniform()
-        self.p = tf.Variable(self.initializer([self.neurons_cnt], dtype=tf.float64))
+        self.p = tf.Variable(self.initializer([self.neurons_cnt], dtype=tf.float64), "parameters_of_nn")
         self.parms = tf.split(self.p, self.sizes, 0)
         for i in range(len(self.parms)):
             self.parms[i] = tf.reshape(self.parms[i], self.shapes[i])
@@ -69,11 +69,8 @@ class NeuralNet:
         self.loss = tf.reduce_mean(tf.square(self.r))
 
         # Граф для Левенберга-Марквардта
-        # TODO Добавить возможность изменения критерия из настроек
-        self.error_estimate = 10 * math.log10(1 / (4 * self.m * int(self.outs)))
-
         self.opt = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=1)
-        self.mu = tf.compat.v1.placeholder(tf.float64, shape=[1])
+        self.mu = tf.compat.v1.placeholder(tf.float64, shape=[1], name="mu")
         self.p_store = tf.Variable(tf.zeros([self.neurons_cnt], dtype=tf.float64))
         self.save_parms = tf.compat.v1.assign(self.p_store, self.p)
         self.restore_parms = tf.compat.v1.assign(self.p, self.p_store)
@@ -161,110 +158,181 @@ class NeuralNet:
 
         # Приведение батчей к одной форме [shape]
         self.min_error = min_error
-        len_of_test = len(x_valid)
-        len_of_train = len(x_train)
-        x_train, x_valid, y_train, y_valid = batch_expansion(x_train, x_valid, y_train, y_valid)
+        if len(x_train) <= self.settings["batch_size"] and len(y_valid) <= self.settings["batch_size"]:
+            len_of_test = len(x_valid)
+            len_of_train = len(x_train)
+            x_train, x_valid, y_train, y_valid = batch_expansion(x_train, x_valid, y_train, y_valid)
 
-        train_dict = {self.x: x_train, self.y: y_train}
+        else:
+            len_of_test = len(x_valid)
+            len_of_train = len(x_train)
+            x_train, x_valid, y_train, y_valid = self.get_batches(x_train, x_valid, y_train, y_valid)
 
-        valid_dict = {self.x: x_valid, self.y: y_valid}
+        mu_track = {}
+        for i in range(len(x_train)):
+            mu_track[i] = mu_init
 
-        train_dict[self.mu] = np.array([mu_init])
+        print("debug", x_train.shape, y_train.shape, x_valid.shape, y_valid.shape)
 
         self.error_train = {"mse": [], "mae": []}
         self.error_test = {"mse": [], "mae": []}
 
+        mse_train, mae_train, mse_test, mae_test = self.get_errors(x_train, y_train, x_valid, y_valid, mu_init)
+        self.error_train["mse"].append(mse_train)
+        self.error_train["mae"].append(mae_train)
+        self.error_test["mse"].append(mse_test)
+        self.error_test["mae"].append(mae_test)
+
         step = 0
 
-        current_loss = self.session.run(self.loss, train_dict)
+        current_loss = self.current_learn_loss(x_train, y_train, np.array([mu_init]))
 
         while current_loss > min_error and step < max_steps:
             step += 1
 
+            for batch in range(len(mu_track)):
+                if mu_track[batch] > 1e20 or mu_track[batch] < 1e-20:
+                    mu_track[batch] = mu_init
+
             if step % int(max_steps / 5) == 0 and verbose:
                 error_string = ""
                 for err in self.error_train.keys():
-                    error_string += f"{err}: {self.error_train[err][-1]:.2e} "
+                    error_string += f"train {err}: {self.error_train[err][-1]:.2e} "
                 for err in self.error_test.keys():
-                    error_string += f"{err}: {self.error_test[err][-1]:.2e} "
+                    error_string += f"test {err}: {self.error_test[err][-1]:.2e} "
                 print(f"LM step: {step}, mu: {train_dict[self.mu][0]:.2e}, {error_string}")
 
-            self.session.run(self.save_parms)
-            self.session.run(self.save_jTj_jTr, train_dict)
-            success = False
-            for i in range(m_into_epoch):
-                self.session.run(self.lm, train_dict)
-                new_loss = self.session.run(self.loss, train_dict)
-                if new_loss < current_loss:
-                    train_dict[self.mu] /= mu_divide
-                    current_loss = new_loss
-                    success = True
-                    break
-                train_dict[self.mu] *= mu_multiply
-                self.session.run(self.restore_parms)
-
-            self.error_train["mse"].append(current_loss)
-            y_pred_valid = self.session.run(self.y_hat, valid_dict)
-            y_pred = self.session.run(self.y_hat, train_dict)
-            self.error_train["mae"].append(
-                mae(
-                    np.argmax(np.asarray(y_pred)[:len_of_train], axis=1),
-                    np.argmax(np.asarray(y_train)[:len_of_train], axis=1),
+            # Start batch
+            for batch in range(len(x_train)):
+                current_loss_batch = self.session.run(
+                    self.loss, {self.x : x_train[batch], self.y : y_train[batch], self.mu : np.asarray([mu_init])}
                 )
-            )
-            self.error_test["mse"].append(
-                mse(np.asarray(y_pred_valid)[:len_of_test].ravel(), np.asarray(y_valid)[:len_of_test].ravel())
-            )
-            self.error_test["mae"].append(
-                mae(
-                    np.argmax(np.asarray(y_pred_valid)[:len_of_test], axis=1),
-                    np.argmax(np.asarray(y_valid)[:len_of_test], axis=1),
-                )
-            )
+                train_dict = {self.mu : np.asarray([mu_track[batch]])}
+                train_dict[self.x] = x_train[batch]
+                train_dict[self.y] = y_train[batch]
+                self.session.run(self.save_parms)
+                self.session.run(self.save_jTj_jTr, train_dict)
+                sub_epoch = 0
+                while sub_epoch < m_into_epoch:
+                    self.session.run(self.lm, train_dict)
+                    new_loss = self.session.run(self.loss, train_dict)
+                    sub_epoch += 1
+                    if new_loss < current_loss_batch:
+                        mu_track[batch] = mu_track[batch] / mu_divide
+                        train_dict[self.mu] = np.asarray([mu_track[batch]])
+                        sub_epoch = m_into_epoch + 1
+                    else:
+                        mu_track[batch] = mu_track[batch] * mu_multiply
+                        train_dict[self.mu] = np.asarray([mu_track[batch]])
+                        self.session.run(self.restore_parms)
+                
+                    # End batch
+            
+            mse_train, mae_train, mse_test, mae_test = self.get_errors(x_train, y_train, x_valid, y_valid, mu_init)
+            self.error_train["mse"].append(mse_train)
+            self.error_train["mae"].append(mae_train)
+            self.error_test["mse"].append(mse_test)
+            self.error_test["mae"].append(mae_test)
+            current_loss = self.current_learn_loss(x_train, y_train, np.asarray([mu_init]))
 
-            if not success:
-
-                error_string = ""
-                for err in self.error_train.keys():
-                    error_string += f"{err}: {self.error_train[err][-1]:.2e} "
-                for err in self.error_test.keys():
-                    error_string += f"{err}: {self.error_test[err][-1]:.2e} "
-
-                print(f"LM failed to improve, on step {step:}, {error_string}\n")
-                self.session.run(self.p)
-                return
-
-        print(f"LevMarq ended on: {step:},\tfinal loss: {current_loss:.2e}\n")
+        print(f"LevMarq ended on: {step:},\tfinal loss: {self.error_train['mse'][-1]:.2e}\n")
         self.session.run(self.p)
+
+    def get_errors(self, x_train, y_train, x_valid, y_valid, mu):
+        (mse_train, mae_train) = (0, 0)
+               
+        for batch in range(len(x_train)):
+            train_dict = {self.x : x_train[batch], self.y : y_train[batch], self.mu : np.asarray([mu])}
+            y_pred = self.session.run(self.y_hat, train_dict)
+            mse_train += mae(
+                np.asarray(y_pred).ravel(),
+                np.asarray(y_train)[batch].ravel(),
+            )
+            mae_train += mae(
+                    np.argmax(np.asarray(y_pred), axis=1),
+                    np.argmax(np.asarray(y_train)[batch], axis=1),
+            )
+
+        (mse_test, mae_test) = (0, 0)
+        for batch in range(len(x_valid)):
+            valid_dict = {self.x : x_valid[batch], self.y : y_valid[batch], self.mu : np.asarray([mu])}
+            y_pred_valid = self.session.run(self.y_hat, valid_dict)                         
+            mse_test += mse(
+                np.asarray(y_pred_valid).ravel(), 
+                np.asarray(y_valid)[batch].ravel()
+            )
+            mae_test += mae(
+                    np.argmax(np.asarray(y_pred_valid), axis=1),
+                    np.argmax(np.asarray(y_valid)[batch], axis=1),
+            )
+        
+        return (
+            mse_train / len(x_train),
+            mae_train / len(x_train),
+            mse_test / len(x_valid),
+            mae_test / len(x_valid),
+        )
+    
+    def current_learn_loss(self, x_train, y_train, mu):
+        loss = 0
+        for batch in range(len(x_train)):
+            train_dict = {self.x : x_train[batch], self.y : y_train[batch], self.mu : mu}
+            loss += self.session.run(self.loss, train_dict)
+        return loss / len(x_train)
 
     def predict(self, data_to_predict, raw=True):
 
         init_len = len(data_to_predict)
-        predict_dict = {
-            self.x: np.vstack(
-                (
-                    data_to_predict,
-                    np.zeros(shape=(self.settings["input_len"] - len(data_to_predict), data_to_predict.shape[1])),
-                )
-            )
-        }
-        preds = self.session.run(self.y_hat, predict_dict)[:init_len]
-        if raw:
-            return preds
-        return np.argmax(preds, axis=1)
 
-    def plot_lw(self, path, save=False):
+        x_pred_count = math.floor(len(data_to_predict) / self.settings["batch_size"]) + 1
+        x_pred_batches = []
+
+        for i in range(x_pred_count - 1):
+            x_pred_batches.append(
+                data_to_predict[i * self.settings["batch_size"] : (i + 1) * self.settings["batch_size"]]
+            )
+        
+        x_pred_batches.append(np.vstack([
+            data_to_predict[(x_pred_count - 1) * self.settings["batch_size"] : ],
+            np.zeros(shape=([
+                self.settings["batch_size"] - len(data_to_predict[(x_pred_count - 1) * self.settings["batch_size"] : 
+            ])] + list(data_to_predict.shape[1:])))
+        ]))
+
+        predict_dict = {self.x: x_pred_batches[0]}
+        preds = self.session.run(self.y_hat, predict_dict)
+
+        for batch in range(1, len(x_pred_batches)):
+            predict_dict = {self.x: x_pred_batches[batch]}
+            preds = np.vstack([preds, self.session.run(self.y_hat, predict_dict)])
+
+        if raw:
+            return preds[:init_len]
+
+        return np.argmax(preds[:init_len], axis=1)
+
+    def plot_lw(self, path, save=False, logscale=True):
 
         best_result = np.min(self.error_test["mae"])
 
         plt.rcParams.update({"font.size": 15})
         fig, ax = plt.subplots(2, 1)
 
-        ax[0].plot(
-            [10 * np.log10(float(self.min_error))] * int(len(self.error_train["mse"])), "r--", label="Критерий останова"
-        )
-        ax[0].plot(10 * np.log10(self.error_train["mse"]), "g", label="MSE обучение")
-        ax[0].plot(10 * np.log10(self.error_test["mse"]), "b", label="MSE тест")
+        if logscale == True:
+            ax[0].plot(
+                [10 * np.log10(float(self.min_error))] * int(len(self.error_train["mse"])), "r--", label="Критерий останова"
+            )
+            ax[0].plot(10 * np.log10(self.error_train["mse"]), "g", label="MSE обучение")
+            ax[0].plot(10 * np.log10(self.error_test["mse"]), "b", label="MSE тест")
+            ax[0].set_ylabel("Ошибка MSE, дБ")
+        else:
+            ax[0].plot(
+                [float(self.min_error)] * int(len(self.error_train["mse"])), "r--", label="Критерий останова"
+            )
+            ax[0].plot(self.error_train["mse"], "g", label="MSE обучение")
+            ax[0].plot(self.error_test["mse"], "b", label="MSE тест")
+            ax[0].set_ylabel("Ошибка MSE")
+
         ax[0].legend(loc="best")
 
         ax[1].plot(
@@ -277,7 +345,6 @@ class NeuralNet:
         ax[1].legend(loc="best")
 
         ax[0].set_xlabel("Эпохи обучения")
-        ax[0].set_ylabel("Ошибка MSE, дБ")
         ax[0].set_title("График MSE")
 
         ax[1].set_xlabel("Эпохи обучения")
@@ -291,6 +358,75 @@ class NeuralNet:
 
         plt.show()
 
+    def get_batches(self, x_train, x_test, y_train, y_test):
+        
+        if len(x_train) % self.settings["batch_size"] == 0:
+            x_train_count = math.floor(len(x_train) / self.settings["batch_size"])
+            x_test_count = math.floor(len(x_test) / self.settings["batch_size"])
+        else:
+            x_train_count = math.floor(len(x_train) / self.settings["batch_size"]) + 1
+            x_test_count = math.floor(len(x_test) / self.settings["batch_size"]) + 1
+        
+        x_train_batches = []
+        x_test_batches = []
+        y_train_batches = []
+        y_test_batches = []
+
+        x_train, y_train = self.shuffle_input_data(x_train, y_train) 
+        x_test, y_test = self.shuffle_input_data(x_test, y_test)
+
+        for i in range(x_train_count - 1):
+            x_train_batches.append(
+                x_train[i * self.settings["batch_size"] : (i + 1) * self.settings["batch_size"]]
+            )
+            y_train_batches.append(
+                y_train[i * self.settings["batch_size"] : (i + 1) * self.settings["batch_size"]]
+            )
+   
+        x_train_batches.append(np.vstack([
+            x_train[(x_train_count - 1) * self.settings["batch_size"] : ],
+            x_train[
+                len(x_train[(x_train_count - 1) * self.settings["batch_size"] : ]) : self.settings["batch_size"]
+            ]
+        ]))
+        y_train_batches.append(np.vstack([
+            y_train[(x_train_count - 1) * self.settings["batch_size"] : ],
+            y_train[
+                len(y_train[(x_train_count - 1) * self.settings["batch_size"] : ]) : self.settings["batch_size"]
+            ]
+        ]))
+
+        for i in range(x_test_count - 1):
+            x_test_batches.append(
+                x_test[i * self.settings["batch_size"] : (i + 1) * self.settings["batch_size"]]
+            )
+            y_test_batches.append(
+                y_test[i * self.settings["batch_size"] : (i + 1) * self.settings["batch_size"]]
+            )
+        x_test_batches.append(np.vstack([
+            x_test[(x_test_count - 1) * self.settings["batch_size"] : ],
+            x_test[
+                len(x_test[(x_test_count - 1) * self.settings["batch_size"] : ]) : self.settings["batch_size"]
+            ]
+        ]))
+        y_test_batches.append(np.vstack([
+            y_test[(x_test_count - 1) * self.settings["batch_size"] : ],
+            y_test[
+                len(y_test[(x_test_count - 1) * self.settings["batch_size"] : ]) : self.settings["batch_size"]
+            ]
+        ]))
+
+        return (
+            np.asarray(x_train_batches), 
+            np.asarray(x_test_batches), 
+            np.asarray(y_train_batches), 
+            np.asarray(y_test_batches)
+        )
+
+    def shuffle_input_data(self, a, b):
+        assert len(a) == len(b)
+        p = np.random.permutation(len(a))
+        return a[p], b[p]
 
 def mae(vec_pred, vec_true):
     err = 0
@@ -310,14 +446,29 @@ def mse(vec_pred, vec_true):
 
 def batch_expansion(x_train, x_test, y_train, y_test):
     if len(x_test) == len(x_train):
-        return x_train, x_test, y_train, y_test
+        return (
+            x_train.reshape([1] + list(x_train.shape)), 
+            x_test.reshape([1] + list(x_test.shape)), 
+            y_train.reshape([1] + list(y_train.shape)), 
+            y_test.reshape([1] + list(y_test.shape))
+        )
 
     if len(x_test) < len(x_train):
-        x_test = np.vstack((x_test, np.zeros(shape=(len(x_train) - len(x_test), x_test.shape[1]))))
-        y_test = np.vstack((y_test, np.zeros(shape=(len(y_train) - len(y_test), y_test.shape[1]))))
-        return x_train, x_test, y_train, y_test
+        x_test = np.vstack((x_test, np.zeros(shape=([len(x_train) - len(x_test)] + list(x_test.shape[1:])))))
+        y_test = np.vstack((y_test, np.zeros(shape=([len(y_train) - len(y_test)] + list(y_test.shape[1:])))))
+        return (
+            x_train.reshape([1] + list(x_train.shape)), 
+            x_test.reshape([1] + list(x_test.shape)), 
+            y_train.reshape([1] + list(y_train.shape)), 
+            y_test.reshape([1] + list(y_test.shape))
+        )
 
     if len(y_test) > len(x_train):
-        x_train = np.vstack((x_train, np.zeros(shape=(len(x_test) - len(x_train), x_train.shape[1]))))
-        y_train = np.vstack((y_train, np.zeros(shape=(len(y_test) - len(y_train), y_train.shape[1]))))
-        return x_train, x_test, y_train, y_test
+        x_train = np.vstack((x_train, np.zeros(shape=([len(x_test) - len(x_train)] + list(x_train.shape[1:])))))
+        y_train = np.vstack((y_train, np.zeros(shape=([len(y_test) - len(y_train)] + list(y_train.shape[1:])))))
+        return (
+            x_train.reshape([1] + list(x_train.shape)), 
+            x_test.reshape([1] + list(x_test.shape)), 
+            y_train.reshape([1] + list(y_train.shape)), 
+            y_test.reshape([1] + list(y_test.shape))
+        )
