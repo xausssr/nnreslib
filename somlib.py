@@ -25,27 +25,34 @@ class NeuralNet:
 
 
         #====================================================#
-        # Сверточная часть
         
         self.conv_shape_checker()
         self.neurons_cnt = 0
         
         keys = list(self.settings["architecture"].keys())
+        last_conv_dim = self.settings["inputs"][-1]
         self.weights_shapes = []
         for layer in range(len(keys)):
             if self.settings["architecture"][keys[layer]]["type"] == "convolution":
-                self.neurons_cnt += np.prod(self.settings["architecture"][keys[layer]]["kernel"]) * self.settings["architecture"][keys[layer]]["filtres"] + self.settings["architecture"][keys[layer]]["filtres"]
-                self.weights_shapes.append(self.settings["architecture"][keys[layer]]["kernel"] + [1] + [self.settings["architecture"][keys[layer]]["filtres"]])
+                self.neurons_cnt += np.prod(self.settings["architecture"][keys[layer]]["kernel"]) * last_conv_dim * self.settings["architecture"][keys[layer]]["filtres"] + self.settings["architecture"][keys[layer]]["filtres"]
+                self.weights_shapes.append(self.settings["architecture"][keys[layer]]["kernel"] + [last_conv_dim] + [self.settings["architecture"][keys[layer]]["filtres"]])
                 self.weights_shapes.append([1, 1, 1] + [self.settings["architecture"][keys[layer]]["filtres"]])
+                last_conv_dim = self.settings["architecture"][keys[layer]]["filtres"]                    
+                
             if self.settings["architecture"][keys[layer]]["type"] == "fully_conneted" or self.settings["architecture"][keys[layer]]["type"] == "out":
                 if self.settings["architecture"][keys[layer - 1]]["type"] == "flatten":
                     self.weights_shapes.append([self.settings["architecture"][keys[layer - 1]]["out_shape"], self.settings["architecture"][keys[layer]]["neurons"]])
                     self.weights_shapes.append([1] + [self.settings["architecture"][keys[layer]]["neurons"]])
                     self.neurons_cnt += self.settings["architecture"][keys[layer - 1]]["out_shape"] * self.settings["architecture"][keys[layer]]["neurons"] + self.settings["architecture"][keys[layer]]["neurons"]
                 else:
-                    self.weights_shapes.append([self.settings["architecture"][keys[layer - 1]]["neurons"], self.settings["architecture"][keys[layer]]["neurons"]])
-                    self.weights_shapes.append([1] + [self.settings["architecture"][keys[layer]]["neurons"]])
-                    self.neurons_cnt += self.settings["architecture"][keys[layer - 1]]["neurons"] * self.settings["architecture"][keys[layer]]["neurons"] + self.settings["architecture"][keys[layer]]["neurons"]
+                    if layer == 0:
+                        self.weights_shapes.append([self.settings["inputs"][0], self.settings["architecture"][keys[layer]]["neurons"]])
+                        self.weights_shapes.append([1] + [self.settings["architecture"][keys[layer]]["neurons"]])
+                        self.neurons_cnt += self.settings["inputs"][0] * self.settings["architecture"][keys[layer]]["neurons"] + self.settings["architecture"][keys[layer]]["neurons"]
+                    else:
+                        self.weights_shapes.append([self.settings["architecture"][keys[layer - 1]]["neurons"], self.settings["architecture"][keys[layer]]["neurons"]])
+                        self.weights_shapes.append([1] + [self.settings["architecture"][keys[layer]]["neurons"]])
+                        self.neurons_cnt += self.settings["architecture"][keys[layer - 1]]["neurons"] * self.settings["architecture"][keys[layer]]["neurons"] + self.settings["architecture"][keys[layer]]["neurons"]
         
         self.initial = tf.keras.initializers.glorot_normal()
         self.p = tf.Variable(self.initial([self.neurons_cnt], dtype=tf.float64))
@@ -160,7 +167,7 @@ class NeuralNet:
                     t.add_row([i, settings[i]])
             print(t)
             print("\ntf version: ", tf.__version__, "\n")
-            print(f"Complex:\n        [parameters]x[data lenth]\n        {self.neurons_cnt}x{self.m}\n")
+            print(f"Complex:\n        [parameters]x[batch size]\n        {self.neurons_cnt}x{self.m}\n")
             print("Architecture:")
             t = PrettyTable(["Name", "Type", "Neurons number", "Activation"])
             t.add_row(["input", "input", settings["inputs"], "-"])
