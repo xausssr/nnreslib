@@ -13,9 +13,9 @@ architecture = {
     "cl2": {"type": "convolution", "filtres": 8, "kernel" : [3, 3], "stride": [2, 2], "pad": [0, 0]},
     "mp2": {"type": "max_pool", "kernel" : [2, 2], "stride": [2, 2]},
     "fl": {"type": "flatten"},
-    "l1": {"type": "fully_conneted", "shape": [28], "activation": "sigmoid"},
-    "l2": {"type": "fully_conneted", "shape": [12], "activation": "tanh"},
-    "out": {"type": "out", "neurons": [5], "activation": "softmax"},
+    "l1": {"type": "fully_conneted", "neurons": 28, "activation": "sigmoid"},
+    "l2": {"type": "fully_conneted", "neurons": 12, "activation": "tanh"},
+    "out": {"type": "out", "neurons": 5, "activation": "softmax"},
 }
 
 settings = {

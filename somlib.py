@@ -28,17 +28,20 @@ class NeuralNet:
         # Сверточная часть
         
         self.conv_shape_checker()
-        print("debug", self.settings["architecture"])
-        return
-
         self.neurons_cnt = 0
-        for layer in self.settings["architecture"].keys():
-            if self.settings["architecture"][i]["type"] == "convolution":
-                self.neurons_cnt += np.prod(self.settings["architecture"][i]["shape"]) + self.settings["architecture"][i]["shape"][-1]
-            if self.settings["architecture"][i]["type"] == "fully_conneted" or self.settings["architecture"][i]["type"] == "out":
-                self.neurons_cnt += 0
         
+        keys = list(self.settings["architecture"].keys())
+        for layer in range(len(keys)):
+            if self.settings["architecture"][keys[layer]]["type"] == "convolution":
+                self.neurons_cnt += np.prod(self.settings["architecture"][keys[layer]]["kernel"]) * self.settings["architecture"][keys[layer]]["filtres"] + self.settings["architecture"][keys[layer]]["filtres"]
+            if self.settings["architecture"][keys[layer]]["type"] == "fully_conneted" or self.settings["architecture"][keys[layer]]["type"] == "out":
+                if self.settings["architecture"][keys[layer - 1]]["type"] == "flatten":
+                    self.neurons_cnt += self.settings["architecture"][keys[layer - 1]]["out_shape"] * self.settings["architecture"][keys[layer]]["neurons"] + self.settings["architecture"][keys[layer]]["neurons"]
+                else:
+                    self.neurons_cnt += self.settings["architecture"][keys[layer - 1]]["neurons"] * self.settings["architecture"][keys[layer]]["neurons"] + self.settings["architecture"][keys[layer]]["neurons"]
         
+        print("debug", self.neurons_cnt)
+        return
 
         # Граф для Левенберга-Марквардта
         self.opt = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=1)
@@ -403,6 +406,7 @@ class NeuralNet:
 
     def conv_shape_checker(self):
         keys = list(self.settings["architecture"].keys())
+        last_filters_count = 0
         for layer in range(len(keys)):
             if self.settings["architecture"][keys[layer]]["type"] == "convolution":
                 if layer == 0:
@@ -419,6 +423,7 @@ class NeuralNet:
                     ) / self.settings["architecture"][keys[layer]]["stride"][1] + 1)
 
                     self.settings["architecture"][keys[layer]]["out_shape"] = [width, height]
+                    last_filters_count = self.settings["architecture"][keys[layer]]["filtres"]
                 else:
                     width = math.ceil((
                         self.settings["architecture"][keys[layer - 1]]["out_shape"][0] - 
@@ -433,6 +438,7 @@ class NeuralNet:
                     ) / self.settings["architecture"][keys[layer]]["stride"][1] + 1)
 
                     self.settings["architecture"][keys[layer]]["out_shape"] = [width, height]
+                    last_filters_count = self.settings["architecture"][keys[layer]]["filtres"]
             
             if self.settings["architecture"][keys[layer]]["type"] == "max_pool":
                 if layer == 0:
@@ -459,10 +465,12 @@ class NeuralNet:
                     ) / self.settings["architecture"][keys[layer]]["stride"][1] + 1)
 
                     self.settings["architecture"][keys[layer]]["out_shape"] = [width, height]
+            
+            if self.settings["architecture"][keys[layer]]["type"] == "flatten":
+                self.settings["architecture"][keys[layer]]["out_shape"] = np.prod(self.settings["architecture"][keys[layer - 1]]["out_shape"]) * last_filters_count
 
         return
             
-
 
 def mae(vec_pred, vec_true):
     err = 0
