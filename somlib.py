@@ -31,16 +31,30 @@ class NeuralNet:
         self.neurons_cnt = 0
         
         keys = list(self.settings["architecture"].keys())
+        self.weights_shapes = []
         for layer in range(len(keys)):
             if self.settings["architecture"][keys[layer]]["type"] == "convolution":
                 self.neurons_cnt += np.prod(self.settings["architecture"][keys[layer]]["kernel"]) * self.settings["architecture"][keys[layer]]["filtres"] + self.settings["architecture"][keys[layer]]["filtres"]
+                self.weights_shapes.append(self.settings["architecture"][keys[layer]]["kernel"] + [1] + [self.settings["architecture"][keys[layer]]["filtres"]])
+                self.weights_shapes.append([1, 1, 1] + [self.settings["architecture"][keys[layer]]["filtres"]])
             if self.settings["architecture"][keys[layer]]["type"] == "fully_conneted" or self.settings["architecture"][keys[layer]]["type"] == "out":
                 if self.settings["architecture"][keys[layer - 1]]["type"] == "flatten":
+                    self.weights_shapes.append([self.settings["architecture"][keys[layer - 1]]["out_shape"], self.settings["architecture"][keys[layer]]["neurons"]])
+                    self.weights_shapes.append([1] + [self.settings["architecture"][keys[layer]]["neurons"]])
                     self.neurons_cnt += self.settings["architecture"][keys[layer - 1]]["out_shape"] * self.settings["architecture"][keys[layer]]["neurons"] + self.settings["architecture"][keys[layer]]["neurons"]
                 else:
+                    self.weights_shapes.append([self.settings["architecture"][keys[layer - 1]]["neurons"], self.settings["architecture"][keys[layer]]["neurons"]])
+                    self.weights_shapes.append([1] + [self.settings["architecture"][keys[layer]]["neurons"]])
                     self.neurons_cnt += self.settings["architecture"][keys[layer - 1]]["neurons"] * self.settings["architecture"][keys[layer]]["neurons"] + self.settings["architecture"][keys[layer]]["neurons"]
         
+        self.initial = tf.keras.initializers.glorot_normal()
+        self.p = tf.Variable(self.initial([self.neurons_cnt], dtype=tf.float64))
+        self.params = tf.split(self.p, [np.prod(x) for x in self.weights_shapes], 0)
+
+        
+
         print("debug", self.neurons_cnt)
+        print("debug", self.weights_shapes)
         return
 
         # Граф для Левенберга-Марквардта
