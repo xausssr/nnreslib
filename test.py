@@ -15,7 +15,7 @@ architecture = {
     "fl": {"type": "flatten"},
     "l1": {"type": "fully_conneted", "neurons": 28, "activation": "sigmoid"},
     "l2": {"type": "fully_conneted", "neurons": 12, "activation": "tanh"},
-    "out": {"type": "out", "neurons": 5, "activation": "softmax"},
+    "out": {"type": "out", "neurons": 10, "activation": "softmax"},
 }
 
 settings = {

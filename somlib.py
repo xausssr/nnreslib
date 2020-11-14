@@ -20,8 +20,8 @@ class NeuralNet:
         self.outs = settings["outs"]
         self.m = settings["batch_size"]
 
-        self.x = tf.compat.v1.placeholder(tf.float64, shape=[None] + settings["inputs"], name="input_data")
-        self.y = tf.compat.v1.placeholder(tf.float64, shape=[None] + [settings["outs"]], name="input_labels")
+        self.x = tf.compat.v1.placeholder(tf.float64, shape=[settings["batch_size"]] + settings["inputs"], name="input_data")
+        self.y = tf.compat.v1.placeholder(tf.float64, shape=[settings["batch_size"]] + [settings["outs"]], name="input_labels")
 
 
         #====================================================#
@@ -100,10 +100,9 @@ class NeuralNet:
                 )
                 arch_index += 2
             
-
-        print("debug", self.neurons_cnt)
-        print("debug", self.weights_shapes)
-        return
+        self.y_hat_flat = tf.squeeze(self.y_hat)
+        self.r = self.y - self.y_hat
+        self.loss = tf.reduce_mean(tf.square(self.r), name="Loss")
 
         # Граф для Левенберга-Марквардта
         self.opt = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=1)
@@ -166,14 +165,20 @@ class NeuralNet:
             t = PrettyTable(["Name", "Type", "Neurons number", "Activation"])
             t.add_row(["input", "input", settings["inputs"], "-"])
             for i in settings["architecture"].keys():
-                t.add_row(
-                    [
-                        i,
-                        settings["architecture"][i]["type"],
-                        settings["architecture"][i]["neurons"],
-                        settings["architecture"][i]["activation"],
-                    ]
-                )
+                row = [i, settings["architecture"][i]["type"]]
+                if settings["architecture"][i]["type"] == "convolution":
+                    row.append(str(settings["architecture"][i]["filtres"]) + " x " + str(settings["architecture"][i]["kernel"]))
+                    row.append(settings["architecture"][i]["activation"])
+                if settings["architecture"][i]["type"] == "flatten":
+                    row.append("-")
+                    row.append("-")
+                if settings["architecture"][i]["type"] == "max_pool":
+                    row.append("-")
+                    row.append("-")
+                if settings["architecture"][i]["type"] == "fully_conneted" or settings["architecture"][i]["type"] == "out":
+                    row.append(settings["architecture"][i]["neurons"])
+                    row.append(settings["architecture"][i]["activation"])
+                t.add_row(row)
             print(t)
             print("\n")
 
