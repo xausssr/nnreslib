@@ -60,15 +60,15 @@ valid_data = pd.read_csv(path / "test.csv")
 
 # Архитектура ИНС
 architecture = {
-    "l1": {"type": "fully_conneted", "neurons": 28, "activation": "sigmoid"},
-    "l2": {"type": "fully_conneted", "neurons": 12, "activation": "tanh"},
-    "out": {"type": "out", "neurons": 5, "activation": "softmax"},
+    "l1": {"type": "fully_conneted", "neurons": 31, "activation": "sigmoid"},
+    "l2": {"type": "fully_conneted", "neurons": 18, "activation": "sigmoid"},
+    "out": {"type": "out", "neurons": 5, "activation": "sigmoid"},
 }
 
 # Настройки обучения
 settings = {
     "outs": 5,
-    "batch_size": 120,
+    "batch_size": 240,
     "architecture": architecture,
     "inputs": [len(train_data.columns) - 5],
     "activation": "sigmoid",
@@ -85,7 +85,7 @@ nn.fit_lm(
     y_valid=valid_data.values[:, -5:],
     mu_init=5.0,
     min_error=2.083e-4,
-    max_steps=6,
+    max_steps=2500,
     mu_multiply=5,
     mu_divide=5,
     m_into_epoch=5,
