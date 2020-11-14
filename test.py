@@ -5,6 +5,31 @@ from somlib import NeuralNet
 
 path = Path(__file__).parent / "data"
 
+print("\n\nТест сверточной сети на наборе MNIST")
+
+architecture = {
+    "cl1": {"type": "convolution", "filtres": 8, "kernel" : [3, 3], "stride": [2, 2], "pad": [0, 0]},
+    "mp1": {"type": "max_pool", "kernel" : [2, 2], "stride": [2, 2]},
+    "cl2": {"type": "convolution", "filtres": 8, "kernel" : [3, 3], "stride": [2, 2], "pad": [0, 0]},
+    "mp2": {"type": "max_pool", "kernel" : [2, 2], "stride": [2, 2]},
+    "fl": {"type": "flatten"},
+    "l1": {"type": "fully_conneted", "shape": [28], "activation": "sigmoid"},
+    "l2": {"type": "fully_conneted", "shape": [12], "activation": "tanh"},
+    "out": {"type": "out", "neurons": [5], "activation": "softmax"},
+}
+
+settings = {
+    "outs": 10,
+    "batch_size": 120,
+    "architecture": architecture,
+    "inputs": [28,28,1],
+    "activation": "sigmoid",
+}
+
+# Построение CНС
+nn = NeuralNet(settings, verbose=True)
+exit()
+
 train_data = pd.read_csv(path / "train.csv")
 valid_data = pd.read_csv(path / "test.csv")
 
@@ -47,26 +72,3 @@ nn.plot_lw(None, save=False, logscale=False)
 
 print(nn.predict(valid_data.values[:, :-5], raw=True)[:10])
 print(nn.predict(valid_data.values[:, :-5], raw=False)[:10])
-
-print("\n\nТест сверточной сети на наборе MNIST")
-
-architecture = {
-    "cl1": {"type": "convolution", "shape":[3,3,1,32]},
-    "cl2": {"type": "convolution", "shape":[3,3,32,16]},
-    "cl3": {"type": "convolution", "shape":[3,3,64, 8]},
-    "fl": {"type": "flatten", "shape":[4*4*8]},
-    "l1": {"type": "fully_conneted", "neurons": 28, "activation": "sigmoid"},
-    "l2": {"type": "fully_conneted", "neurons": 12, "activation": "tanh"},
-    "out": {"type": "out", "neurons": 5, "activation": "softmax"},
-}
-
-settings = {
-    "outs": 10,
-    "batch_size": 120,
-    "architecture": architecture,
-    "inputs": [28,28,1],
-    "activation": "sigmoid",
-}
-
-# Построение CНС
-nn = NeuralNet(settings, verbose=True)
