@@ -51,7 +51,55 @@ class NeuralNet:
         self.p = tf.Variable(self.initial([self.neurons_cnt], dtype=tf.float64))
         self.params = tf.split(self.p, [np.prod(x) for x in self.weights_shapes], 0)
 
-        
+        # Конструируем граф для сети
+        activations = {"relu": tf.nn.relu, "sigmoid": tf.nn.sigmoid, "tanh": tf.nn.tanh, "softmax": tf.nn.softmax}
+
+        self.y_hat = self.x
+        arch_index = 0
+
+        for layer in range(len(keys)):
+            if self.settings["architecture"][keys[layer]]["type"] == "convolution":
+                self.activation = activations[
+                    self.settings["architecture"][keys[layer]]["activation"]
+                ]
+                pad_h = [self.settings["architecture"][keys[layer]]["pad"][0] / 2 for x in range(2)]
+                pad_w = [self.settings["architecture"][keys[layer]]["pad"][1] / 2 for x in range(2)]
+                self.y_hat = self.activation(
+                    tf.nn.conv2d(
+                        self.y_hat, 
+                        tf.reshape(self.params[arch_index], self.weights_shapes[arch_index]), 
+                        [1] + self.settings["architecture"][keys[layer]]["stride"] + [1], 
+                        padding=[[0, 0], pad_h, pad_w, [0, 0]], 
+                        name=keys[layer]
+                    ) + tf.reshape(self.params[arch_index + 1], self.weights_shapes[arch_index + 1]))
+                arch_index += 2
+            if self.settings["architecture"][keys[layer]]["type"] == "max_pool":
+                self.y_hat = tf.nn.max_pool(
+                    self.y_hat,
+                    [1] + self.settings["architecture"][keys[layer]]["kernel"] + [1],
+                    [1] + self.settings["architecture"][keys[layer]]["stride"] + [1],
+                    padding="SAME", 
+                    name=keys[layer]
+                )
+            if self.settings["architecture"][keys[layer]]["type"] == "flatten":
+                self.y_hat = tf.reshape(
+                    self.y_hat, 
+                    [self.settings["batch_size"]] + [self.settings["architecture"][keys[layer]]["out_shape"]],
+                    name=keys[layer]
+                )
+            if self.settings["architecture"][keys[layer]]["type"] == "fully_conneted" or self.settings["architecture"][keys[layer]]["type"] == "out":
+                self.activation = activations[
+                    self.settings["architecture"][keys[layer]]["activation"]
+                ]
+                self.y_hat = self.activation(
+                    tf.matmul(
+                        self.y_hat, 
+                        tf.reshape(self.params[arch_index], self.weights_shapes[arch_index])
+                    ) + tf.reshape(self.params[arch_index + 1], self.weights_shapes[arch_index + 1]), 
+                    name=keys[layer]
+                )
+                arch_index += 2
+            
 
         print("debug", self.neurons_cnt)
         print("debug", self.weights_shapes)
