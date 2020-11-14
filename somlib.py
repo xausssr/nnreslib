@@ -23,82 +23,23 @@ class NeuralNet:
         self.x = tf.compat.v1.placeholder(tf.float64, shape=[None] + settings["inputs"], name="input_data")
         self.y = tf.compat.v1.placeholder(tf.float64, shape=[None] + [settings["outs"]], name="input_labels")
 
+
+        #====================================================#
         # Сверточная часть
-        # Получаем веса из architecture
-        self.cl_weights = {}
-        self.cl_biases = {}
-
-        for i in self.settings["architecture"].keys():
-            if (
-                self.settings["architecture"][i]["type"] == "convolution" or 
-                self.settings["architecture"][i]["type"] == "flatten" 
-            ):
-                self.cl_weights[i] = tf.compat.v1.get_variable(
-                    i, 
-                    shape=self.settings["architecture"][i]["shape"], 
-                    initializer=tf.compat.v1.initializers.lecun_uniform()
-                )
-                self.cl_biases[i] = tf.compat.v1.get_variable(
-                    str(i) + "_b",
-                    shape=(self.settings["architecture"][i]["shape"][-1]),
-                    initializer=tf.compat.v1.initializers.lecun_uniform()
-                )
-
-        # Полносвязная часть
-        self.nn = []
-        for i in self.settings["architecture"].keys():
-            if (
-                self.settings["architecture"][i]["type"] == "fully_conneted"
-                or self.settings["architecture"][i]["type"] == "out"
-            ):
-                self.nn.append(self.settings["architecture"][i]["neurons"])
-
-        if len(self.cl_weights.keys()) > 0:
-            self.st = [self.cl_weights[list(self.cl_weights.keys())[-1]].get_shape().as_list()[0]] + self.nn
-        else:
-            self.st = self.settings["inputs"] + self.nn
-
-        self.sizes = []
-        self.shapes = []
-        for i in range(1, len(self.nn) + 1):
-            self.shapes.append((self.st[i - 1], self.st[i]))
-            self.shapes.append((1, self.st[i]))
-        self.sizes = [h * w for h, w in self.shapes]
-        self.neurons_cnt = sum(self.sizes)
-
-        activations = {"relu": tf.nn.relu, "sigmoid": tf.nn.sigmoid, "tanh": tf.nn.tanh, "softmax": tf.nn.softmax}
-
-        # Граф для прямого вычисления
-        # TODO Другие инициалезеры
-        self.initializer = tf.compat.v1.initializers.lecun_uniform()
-        self.p = tf.Variable(self.initializer([self.neurons_cnt], dtype=tf.float64), "parameters_of_nn")
-        self.parms = tf.split(self.p, self.sizes, 0)
-        for i in range(len(self.parms)):
-            self.parms[i] = tf.reshape(self.parms[i], self.shapes[i])
-        self.Ws = self.parms[0:][::2]
-        self.bs = self.parms[1:][::2]
-
-        # TODO Перепсать под два класса сетей СНС и ПИНС
-        self.y_hat = self.x
-        if len(self.cl_weights.keys()) > 0:
-            for cl_layer in self.cl_weights.keys():
-                if cl_layer != list(self.cl_weights.keys())[-1]:
-                    self.y_hat = self.conv2d(self.y_hat, self.cl_weights[cl_layer], self.cl_biases[cl_layer])
-                    self.y_hat = tf.nn.max_pool(self.y_hat, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], fpadding='SAME')
-            self.y_hat = tf.reshape(y_hat, [-1, self.cl_weights[list(self.cl_weights.keys())[-1]].get_shape().as_list()[0]])
         
-        for i in range(len(self.nn)):
-            self.activation = activations[
-                self.settings["architecture"][list(settings["architecture"].keys())[i]]["activation"]
-            ]
-            self.y_hat = self.activation(tf.matmul(self.y_hat, self.Ws[i]) + self.bs[i])
-        self.y_hat_flat = tf.squeeze(self.y_hat)
+        self.conv_shape_checker()
+        print("debug", self.settings["architecture"])
+        return
 
-        self.r = self.y - self.y_hat
+        self.neurons_cnt = 0
+        for layer in self.settings["architecture"].keys():
+            if self.settings["architecture"][i]["type"] == "convolution":
+                self.neurons_cnt += np.prod(self.settings["architecture"][i]["shape"]) + self.settings["architecture"][i]["shape"][-1]
+            if self.settings["architecture"][i]["type"] == "fully_conneted" or self.settings["architecture"][i]["type"] == "out":
+                self.neurons_cnt += 0
+        
+        
 
-        self.loss = tf.reduce_mean(tf.square(self.r))
-        if len(self.cl_weights.keys()) > 0:
-            print("debug: CNN builded!")
         # Граф для Левенберга-Марквардта
         self.opt = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=1)
         self.mu = tf.compat.v1.placeholder(tf.float64, shape=[1], name="mu")
@@ -106,6 +47,7 @@ class NeuralNet:
         self.save_parms = tf.compat.v1.assign(self.p_store, self.p)
         self.restore_parms = tf.compat.v1.assign(self.p, self.p_store)
 
+        #=============================================
         def jacobian(y, x, m):
             loop_vars = [
                 tf.constant(0, tf.int32),
@@ -459,12 +401,68 @@ class NeuralNet:
         p = np.random.permutation(len(a))
         return a[p], b[p]
 
-    # Вынес крнструктор слоев отдельно - так удобнее?
-    def conv2d(x, W, b, strides=[1, 1, 1, 1], padding='SAME'):
-        # Конструктор 2-мерного сверточного слоя, плюс смещения
-        x = tf.nn.conv2d(x, W, strides=strides, padding=padding)
-        x = tf.nn.bias_add(x, b)
-        return tf.nn.relu(x) 
+    def conv_shape_checker(self):
+        keys = list(self.settings["architecture"].keys())
+        for layer in range(len(keys)):
+            if self.settings["architecture"][keys[layer]]["type"] == "convolution":
+                if layer == 0:
+                    width = math.ceil((
+                        self.settings["inputs"][0] - 
+                        self.settings["architecture"][keys[layer]]["kernel"][0] + 
+                        2 * self.settings["architecture"][keys[layer]]["pad"][0]
+                    ) / self.settings["architecture"][keys[layer]]["stride"][0] + 1)
+
+                    height = math.ceil((
+                        self.settings["inputs"][1] - 
+                        self.settings["architecture"][keys[layer]]["kernel"][1] + 
+                        2 * self.settings["architecture"][keys[layer]]["pad"][1]
+                    ) / self.settings["architecture"][keys[layer]]["stride"][1] + 1)
+
+                    self.settings["architecture"][keys[layer]]["out_shape"] = [width, height]
+                else:
+                    width = math.ceil((
+                        self.settings["architecture"][keys[layer - 1]]["out_shape"][0] - 
+                        self.settings["architecture"][keys[layer]]["kernel"][0] + 
+                        2 * self.settings["architecture"][keys[layer]]["pad"][0]
+                    ) / self.settings["architecture"][keys[layer]]["stride"][0] + 1)
+
+                    height = math.ceil((
+                        self.settings["architecture"][keys[layer - 1]]["out_shape"][1] - 
+                        self.settings["architecture"][keys[layer]]["kernel"][1] + 
+                        2 * self.settings["architecture"][keys[layer]]["pad"][1]
+                    ) / self.settings["architecture"][keys[layer]]["stride"][1] + 1)
+
+                    self.settings["architecture"][keys[layer]]["out_shape"] = [width, height]
+            
+            if self.settings["architecture"][keys[layer]]["type"] == "max_pool":
+                if layer == 0:
+                    width = math.ceil((
+                        self.settings["inputs"][0] - 
+                        self.settings["architecture"][keys[layer]]["kernel"][0]
+                    ) / self.settings["architecture"][keys[layer]]["stride"][0] + 1)
+
+                    height = math.ceil((
+                        self.settings["inputs"][1] - 
+                        self.settings["architecture"][keys[layer]]["kernel"][1]
+                    ) / self.settings["architecture"][keys[layer]]["stride"][1] + 1)
+
+                    self.settings["architecture"][keys[layer]]["out_shape"] = [width, height]
+                else:
+                    width = math.ceil((
+                        self.settings["architecture"][keys[layer - 1]]["out_shape"][0] - 
+                        self.settings["architecture"][keys[layer]]["kernel"][0]
+                    ) / self.settings["architecture"][keys[layer]]["stride"][0] + 1)
+
+                    height = math.ceil((
+                        self.settings["architecture"][keys[layer - 1]]["out_shape"][1] - 
+                        self.settings["architecture"][keys[layer]]["kernel"][1]
+                    ) / self.settings["architecture"][keys[layer]]["stride"][1] + 1)
+
+                    self.settings["architecture"][keys[layer]]["out_shape"] = [width, height]
+
+        return
+            
+
 
 def mae(vec_pred, vec_true):
     err = 0
