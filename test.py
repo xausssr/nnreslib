@@ -8,9 +8,9 @@ path = Path(__file__).parent / "data"
 print("\n\nТест сверточной сети на наборе MNIST")
 
 architecture = {
-    "cl1": {"type": "convolution", "filtres": 8, "kernel" : [3, 3], "stride": [2, 2], "pad": [0, 0]},
+    "cl1": {"type": "convolution", "filtres": 8, "kernel" : [3, 3], "stride": [2, 2], "pad": [0, 0], "activation" : "relu"},
     "mp1": {"type": "max_pool", "kernel" : [2, 2], "stride": [2, 2]},
-    "cl2": {"type": "convolution", "filtres": 8, "kernel" : [3, 3], "stride": [2, 2], "pad": [0, 0]},
+    "cl2": {"type": "convolution", "filtres": 8, "kernel" : [3, 3], "stride": [2, 2], "pad": [0, 0], "activation" : "relu"},
     "mp2": {"type": "max_pool", "kernel" : [2, 2], "stride": [2, 2]},
     "fl": {"type": "flatten"},
     "l1": {"type": "fully_conneted", "neurons": 28, "activation": "sigmoid"},
