@@ -236,6 +236,7 @@ class NeuralNet:
         step = 0
 
         current_loss = self.current_learn_loss(x_train, y_train, np.array([mu_init]))
+        init_loss = current_loss
 
         while current_loss > min_error and step < max_steps:
             step += 1
@@ -283,7 +284,7 @@ class NeuralNet:
             self.error_train["mae"].append(mae_train)
             self.error_test["mse"].append(mse_test)
             self.error_test["mae"].append(mae_test)
-            current_loss = self.current_learn_loss(x_train, y_train, np.asarray([mu_init]))
+            current_loss = self.current_learn_loss(x_train, y_train, np.asarray([mu_init])) / init_loss
 
         print(f"LevMarq ended on: {step:},\tfinal loss: {self.error_train['mse'][-1]:.2e}\n")
         self.session.run(self.p)
@@ -372,8 +373,8 @@ class NeuralNet:
             ax[0].plot(
                 [10 * np.log10(float(self.min_error))] * int(len(self.error_train["mse"])), "r--", label="Критерий останова"
             )
-            ax[0].plot(10 * np.log10(self.error_train["mse"]), "g", label="MSE обучение")
-            ax[0].plot(10 * np.log10(self.error_test["mse"]), "b", label="MSE тест")
+            ax[0].plot(10 * np.log10(self.error_train["mse"] / self.error_train["mse"][0]), "g", label="MSE обучение")
+            ax[0].plot(10 * np.log10(self.error_test["mse"] / self.error_test["mse"][0]), "b", label="MSE тест")
             ax[0].set_ylabel("Ошибка MSE, дБ")
         else:
             ax[0].plot(
