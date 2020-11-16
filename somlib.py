@@ -543,8 +543,6 @@ class NeuralNet:
             
             if self.settings["architecture"][keys[layer]]["type"] == "flatten":
                 self.settings["architecture"][keys[layer]]["out_shape"] = np.prod(self.settings["architecture"][keys[layer - 1]]["out_shape"]) * last_filters_count
-
-        return
             
 
 def mae(vec_pred, vec_true):
