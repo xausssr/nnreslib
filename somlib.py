@@ -58,7 +58,7 @@ class NeuralNet:
         self.p = tf.Variable(self.initial([self.neurons_cnt], dtype=tf.float64))
         self.params = tf.split(self.p, [np.prod(x) for x in self.weights_shapes], 0)
 
-        # Конструируем граф для сети
+        # Build computation graph for neural network
         activations = {"relu": tf.nn.relu, "sigmoid": tf.nn.sigmoid, "tanh": tf.nn.tanh, "softmax": tf.nn.softmax}
 
         self.y_hat = self.x
@@ -111,7 +111,7 @@ class NeuralNet:
         self.r = self.y - self.y_hat
         self.loss = tf.reduce_mean(tf.square(self.r), name="Loss")
 
-        # Граф для Левенберга-Марквардта
+        # Build computation graph for Levenberg-Marqvardt algorithm
         self.opt = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=1)
         self.mu = tf.compat.v1.placeholder(tf.float64, shape=[1], name="mu")
         self.p_store = tf.Variable(tf.zeros([self.neurons_cnt], dtype=tf.float64))
@@ -206,7 +206,7 @@ class NeuralNet:
         verbose=False,
     ):
 
-        # Приведение батчей к одной форме [shape]
+        # Batches to one shape
         self.min_error = min_error
         if len(x_train) <= self.settings["batch_size"] and len(y_valid) <= self.settings["batch_size"]:
             len_of_test = len(x_valid)
@@ -242,7 +242,7 @@ class NeuralNet:
             step += 1
 
             for batch in range(len(mu_track)):
-                if mu_track[batch] > 1e20 or mu_track[batch] < 1e-20:
+                if mu_track[batch] > 1e100 or mu_track[batch] < 1e-100:
                     mu_track[batch] = mu_init
 
             if step % int(max_steps / 5) == 0 and verbose:
