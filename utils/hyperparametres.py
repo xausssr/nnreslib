@@ -1,6 +1,12 @@
 import math
 import numpy as np
+from enum import Enum, auto
 from typing import List, Tuple, Dict
+
+class BorderAssessment(Enum):
+    LOW = auto()
+    MID = auto()
+    UP = auto()
 
 def det_stop(len_dataset: int, len_output: int, gamma: float = 0.5) -> Tuple[float, float]:
     """
@@ -42,7 +48,7 @@ def count_epochs(len_dataset: int, len_output: int, len_input: int, e_h_s_lg: fl
     s_value_all += s_value_all * 0.1 
     return math.ceil(s_value_all)
 
-def num_neurons(len_input: int, len_output: int, len_dataset: int, num_hidden_layers: int = 2, border_assessment: str = "up") -> List[int]:    
+def num_neurons(len_input: int, len_output: int, len_dataset: int, num_hidden_layers: int = 2, border_assessment: BorderAssessment = BorderAssessment.MID) -> List[int]:
     """
     len_input - number of input parametres
     len_output - number of neurons in the output layer
@@ -56,10 +62,10 @@ def num_neurons(len_input: int, len_output: int, len_dataset: int, num_hidden_la
     w_mid = (w_low + w_up) / 2
 
     n_value = {
-        'low': w_low / (len_input + len_output),
-        'mid': w_mid / (len_input + len_output),
-        'up': w_up / (len_input + len_output),
-    }[border_assessment]
+        1: w_low / (len_input + len_output),
+        2: w_mid / (len_input + len_output),
+        3: w_up / (len_input + len_output),
+    }[border_assessment.value]
 
     return {
         1:[math.ceil(n_value)],
@@ -68,9 +74,9 @@ def num_neurons(len_input: int, len_output: int, len_dataset: int, num_hidden_la
     
 def find_hyperparametres(len_dataset: int, len_output: int, len_input: int, num_hidden_layers: int = 2) -> Dict[str, float]:
 	stop = det_stop(len_dataset, len_output)
-	neurons_low = num_neurons(len_input, len_output, len_dataset, num_hidden_layers, border_assessment='low')
-	neurons_mid = num_neurons(len_input, len_output, len_dataset, num_hidden_layers, border_assessment='mid')
-	neurons_up = num_neurons(len_input, len_output, len_dataset, num_hidden_layers, border_assessment='up')
+	neurons_low = num_neurons(len_input, len_output, len_dataset, num_hidden_layers, border_assessment=BorderAssessment.LOW)
+	neurons_mid = num_neurons(len_input, len_output, len_dataset, num_hidden_layers, border_assessment=BorderAssessment.MID)
+	neurons_up = num_neurons(len_input, len_output, len_dataset, num_hidden_layers, border_assessment=BorderAssessment.UP)
 	epochs_low = count_epochs(len_dataset, len_output, len_input, stop[1], neurons_low)
 	epochs_mid = count_epochs(len_dataset, len_output, len_input, stop[1], neurons_mid)
 	epochs_up = count_epochs(len_dataset, len_output, len_input, stop[1], neurons_up)
