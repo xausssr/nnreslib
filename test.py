@@ -59,11 +59,11 @@ print("\n\nТест полносвязной сети")
 train_data = pd.read_csv(path / "train.csv")
 valid_data = pd.read_csv(path / "test.csv")
 
-input_len = len(train_data)
-output_len = len(train_data.columns) - 5
+len_dataset = len(train_data)
+input_len = len(train_data.columns) - 5
 
 # Настройки гиперпараметров
-settings_hyperparametres = find_hyperparametres(input_len, 5, output_len)
+settings_hyperparametres = find_hyperparametres(len_dataset, 5, input_len)
 
 # Архитектура ИНС
 architecture = {
@@ -76,9 +76,8 @@ architecture = {
 settings = {
     "outs": 5,
     "batch_size": 120,
-    "input_len": input_len,
     "architecture": architecture,
-    "inputs": output_len,
+    "inputs": [input_len],
     "activation": "sigmoid",
 }
 
