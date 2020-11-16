@@ -1,15 +1,15 @@
 import math
 import numpy as np
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 def det_stop(len_dataset: int, len_output: int, gamma: float = 0.5) -> Tuple[float, float]:
     """
-    Детерминированный способ нахождения критерия останова обучения
-    len_dataset : int - объем обучающей выборки
-    len_output : int - кол-во нейронов в выходном слое
-    gamma : float - порог ошибок решений
+    Deterministic method for finding the learning stop criterion
+    len_dataset : int - training sample size
+    len_output : int - number of neurons in the output layer
+    gamma : float - error threshold
     
-    e_h_s_lg - критерий остановки в децибелах
+    e_h_s_lg - stopping criterion in decibels
     """
     e_n_0 = 0.25
     e_n_s = 1 / (2 * len_dataset * len_output) * np.max([gamma ** 2, (1 - gamma) ** 2])
@@ -19,12 +19,12 @@ def det_stop(len_dataset: int, len_output: int, gamma: float = 0.5) -> Tuple[flo
 
 def count_epochs(len_dataset: int, len_output: int, len_input: int, e_h_s_lg: float, neurons: List[int]) -> int:
     """
-    Вычисляет кол-во эпох для обучения
-    len_dataset : int - объем обучающей выборки
-    len_output : int - кол-во нейронов в выходном слое
-    len_input : int - кол-во входных параметров
-    e_h_s_lg : float - критерий остановки в децибелах
-    neurons : list, tuple - распределение нейронов по скрытым слоям   
+    Calculates the number of epoch for training
+    len_dataset : int - training sample size
+    len_output : int - number of neurons in the output layer
+    len_input : int - number of input parameters
+    e_h_s_lg : float - stopping criterion in decibels
+    neurons : list, tuple - distribution of neurons to hidden layers
     """
 
     if e_h_s_lg > 0:
@@ -44,32 +44,29 @@ def count_epochs(len_dataset: int, len_output: int, len_input: int, e_h_s_lg: fl
 
 def num_neurons(len_input: int, len_output: int, len_dataset: int, num_hidden_layers: int = 2, border_assessment: str = "up") -> List[int]:    
     """
-    len_input - кол-во входов НС(число входных параметров)
-    len_output - кол-во нейронов в выходном слое НС
-    len_dataset - объем обучающей выборки
-    num_hidden_layers - количество скрытых слоев
+    len_input - number of input parametres
+    len_output - number of neurons in the output layer
+    len_dataset - training sample size
+    num_hidden_layers - number of hidden layers
     border_assessment : "low", "mid", "up" 
     """
 
-    w_low = len_output * len_dataset/(1 + math.log2(len_dataset))  # w - синаптические веса
+    w_low = len_output * len_dataset/(1 + math.log2(len_dataset))  # w - weights
     w_up = len_output * (len_dataset/len_input + 1) * (len_input + len_output + 1) + len_output
     w_mid = (w_low + w_up) / 2
 
-    if border_assessment == "low":
-        n_value = w_low / (len_input + len_output)
-    elif border_assessment == "mid":
-        n_value = w_mid / (len_input + len_output)
-    elif border_assessment == "up":
-        n_value = w_up / (len_input + len_output)
+    n_value = {
+        'low': w_low / (len_input + len_output),
+        'mid': w_mid / (len_input + len_output),
+        'up': w_up / (len_input + len_output),
+    }[border_assessment]
 
-    if num_hidden_layers == 1:
-        return math.ceil(n_value)
-    if num_hidden_layers == 2:
-        n1 = math.ceil(2 / 3 * n_value + 1)
-        n2 = math.ceil(1 / 3 * n_value + 1)
-        return n1, n2
+    return {
+        1:[math.ceil(n_value)],
+        2:[math.ceil(2 / 3 * n_value + 1), math.ceil(1 / 3 * n_value + 1)]
+    }[num_hidden_layers]
     
-def find_hyperparametres(len_dataset: int, len_output: int, len_input: int, num_hidden_layers: int = 2) -> dict:
+def find_hyperparametres(len_dataset: int, len_output: int, len_input: int, num_hidden_layers: int = 2) -> Dict[str, float]:
 	stop = det_stop(len_dataset, len_output)
 	neurons_low = num_neurons(len_input, len_output, len_dataset, num_hidden_layers, border_assessment='low')
 	neurons_mid = num_neurons(len_input, len_output, len_dataset, num_hidden_layers, border_assessment='mid')
@@ -88,4 +85,3 @@ def find_hyperparametres(len_dataset: int, len_output: int, len_input: int, num_
 		        'epochs_up':epochs_up}
 
 	return dict_hyperparam
-
