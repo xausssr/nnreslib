@@ -195,8 +195,8 @@ class NeuralNet:
         self,
         x_train,
         y_train,
-        x_valid,
-        y_valid,
+        x_valid=None,
+        y_valid=None,
         mu_init=3.0,
         min_error=1e-10,
         max_steps=100,
@@ -204,25 +204,26 @@ class NeuralNet:
         mu_divide=10,
         m_into_epoch=10,
         verbose=False,
+        random_batches=True
     ):
 
         # Batches to one shape
         self.min_error = min_error
+        batch_operate_flag = False
         if len(x_train) <= self.settings["batch_size"] and len(y_valid) <= self.settings["batch_size"]:
             len_of_test = len(x_valid)
             len_of_train = len(x_train)
-            x_train, x_valid, y_train, y_valid = batch_expansion(x_train, x_valid, y_train, y_valid)
+            x_train, x_valid, y_train, y_valid = self.batch_expansion(x_train, x_valid, y_train, y_valid)
 
         else:
             len_of_test = len(x_valid)
             len_of_train = len(x_train)
             x_train, x_valid, y_train, y_valid = self.get_batches(x_train, x_valid, y_train, y_valid)
+            batch_operate_flag = True
 
         mu_track = {}
         for i in range(len(x_train)):
             mu_track[i] = mu_init
-
-        print("debug", x_train.shape, y_train.shape, x_valid.shape, y_valid.shape)
 
         self.error_train = {"mse": [], "mae": []}
         self.error_test = {"mse": [], "mae": []}
@@ -252,6 +253,9 @@ class NeuralNet:
                 for err in self.error_test.keys():
                     error_string += f"test {err}: {self.error_test[err][-1]:.2e} "
                 print(f"LM step: {step}, {error_string}")
+
+            if random_batches == True and batch_operate_flag == True:
+                x_train, x_valid, y_train, y_valid = self.get_batches(x_train, x_valid, y_train, y_valid)
 
             # Start batch
             for batch in range(len(x_train)):
@@ -544,6 +548,35 @@ class NeuralNet:
             if self.settings["architecture"][keys[layer]]["type"] == "flatten":
                 self.settings["architecture"][keys[layer]]["out_shape"] = np.prod(self.settings["architecture"][keys[layer - 1]]["out_shape"]) * last_filters_count
             
+    def batch_expansion(self, x_train, x_test, y_train, y_test):
+        if len(x_test) == len(x_train):
+            return (
+                x_train.reshape([1] + list(x_train.shape)), 
+                x_test.reshape([1] + list(x_test.shape)), 
+                y_train.reshape([1] + list(y_train.shape)), 
+                y_test.reshape([1] + list(y_test.shape))
+            )
+
+        if len(x_test) < len(x_train):
+            x_test = np.vstack((x_test, np.zeros(shape=([len(x_train) - len(x_test)] + list(x_test.shape[1:])))))
+            y_test = np.vstack((y_test, np.zeros(shape=([len(y_train) - len(y_test)] + list(y_test.shape[1:])))))
+            return (
+                x_train.reshape([1] + list(x_train.shape)), 
+                x_test.reshape([1] + list(x_test.shape)), 
+                y_train.reshape([1] + list(y_train.shape)), 
+                y_test.reshape([1] + list(y_test.shape))
+            )
+
+        if len(y_test) > len(x_train):
+            x_train = np.vstack((x_train, np.zeros(shape=([len(x_test) - len(x_train)] + list(x_train.shape[1:])))))
+            y_train = np.vstack((y_train, np.zeros(shape=([len(y_test) - len(y_train)] + list(y_train.shape[1:])))))
+            return (
+                x_train.reshape([1] + list(x_train.shape)), 
+                x_test.reshape([1] + list(x_test.shape)), 
+                y_train.reshape([1] + list(y_train.shape)), 
+                y_test.reshape([1] + list(y_test.shape))
+            )
+
 
 def mae(vec_pred, vec_true):
     err = 0
@@ -561,31 +594,3 @@ def mse(vec_pred, vec_true):
     return err / len(vec_pred)
 
 
-def batch_expansion(x_train, x_test, y_train, y_test):
-    if len(x_test) == len(x_train):
-        return (
-            x_train.reshape([1] + list(x_train.shape)), 
-            x_test.reshape([1] + list(x_test.shape)), 
-            y_train.reshape([1] + list(y_train.shape)), 
-            y_test.reshape([1] + list(y_test.shape))
-        )
-
-    if len(x_test) < len(x_train):
-        x_test = np.vstack((x_test, np.zeros(shape=([len(x_train) - len(x_test)] + list(x_test.shape[1:])))))
-        y_test = np.vstack((y_test, np.zeros(shape=([len(y_train) - len(y_test)] + list(y_test.shape[1:])))))
-        return (
-            x_train.reshape([1] + list(x_train.shape)), 
-            x_test.reshape([1] + list(x_test.shape)), 
-            y_train.reshape([1] + list(y_train.shape)), 
-            y_test.reshape([1] + list(y_test.shape))
-        )
-
-    if len(y_test) > len(x_train):
-        x_train = np.vstack((x_train, np.zeros(shape=([len(x_test) - len(x_train)] + list(x_train.shape[1:])))))
-        y_train = np.vstack((y_train, np.zeros(shape=([len(y_test) - len(y_train)] + list(y_train.shape[1:])))))
-        return (
-            x_train.reshape([1] + list(x_train.shape)), 
-            x_test.reshape([1] + list(x_test.shape)), 
-            y_train.reshape([1] + list(y_train.shape)), 
-            y_test.reshape([1] + list(y_test.shape))
-        )
