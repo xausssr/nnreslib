@@ -238,7 +238,7 @@ class NeuralNet:
         current_loss = self.current_learn_loss(x_train, y_train, np.array([mu_init]))
         init_loss = current_loss
 
-        while current_loss > min_error and step < max_steps:
+        while 10 * np.log(current_loss / init_loss) > min_error and step < max_steps:
             step += 1
 
             for batch in range(len(mu_track)):
