@@ -93,20 +93,16 @@ def find_hyperparametres(
     len_output: int,
     len_input: int,
     num_hidden_layers: int = 2
-    ) -> Tuple[Dict[str, Dict[str, List[int]], Dict[str, int]], Tuple[float, float]]:
+    ) -> Tuple[Dict[BorderAssessment, Dict[str, List[int]]], Tuple[float, float]]:
     stop = det_stop(len_dataset, len_output)
-    dict_h = {
-        'LOW':{'num_neurons':[], 'num_epochs':0},
-        'MID':{'num_neurons':[], 'num_epochs':0},
-        'UP':{'num_neurons':[], 'num_epochs':0},
-    }
-    for i,j in zip(BorderAssessment, dict_h.keys()):
+    dict_hyperparametres = {i: {'num_neurons': [], 'num_epochs': 0} for i in BorderAssessment}
+    for i in dict_hyperparametres.keys():
         neurons = num_neurons(
             len_input,
             len_output,
             len_dataset,
             num_hidden_layers,
-            border_assessment=i
+            border_assessment = i
         )
         epochs = count_epochs(
             len_dataset,
@@ -115,5 +111,6 @@ def find_hyperparametres(
             stop[1],
             neurons
         )
-        dict_h.update({j: {'num_neurons':neurons,'num_epochs': epochs}})
-    return dict_h, stop
+        dict_hyperparametres[i]['num_neurons'] = neurons
+        dict_hyperparametres[i]['num_epochs'] = epochs
+    return dict_hyperparametres, stop

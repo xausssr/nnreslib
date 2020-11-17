@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 from somlib import NeuralNet
-from utils.hyperparametres import find_hyperparametres
+from utils.hyperparametres import find_hyperparametres, BorderAssessment
 
 path = Path(__file__).parent / "data"
 
@@ -67,8 +67,8 @@ settings_hyperparametres, stop = find_hyperparametres(len_dataset, 5, input_len)
 
 # Архитектура ИНС
 architecture = {
-    "l1": {"type": "fully_conneted", "neurons": settings_hyperparametres["MID"]["num_neurons"][0], "activation": "sigmoid"},
-    "l2": {"type": "fully_conneted", "neurons": settings_hyperparametres["MID"]["num_neurons"][1], "activation": "tanh"},
+    "l1": {"type": "fully_conneted", "neurons": settings_hyperparametres[BorderAssessment.MID]["num_neurons"][0], "activation": "sigmoid"},
+    "l2": {"type": "fully_conneted", "neurons": settings_hyperparametres[BorderAssessment.MID]["num_neurons"][1], "activation": "tanh"},
     "out": {"type": "out", "neurons": 5, "activation": "softmax"},
 }
 
