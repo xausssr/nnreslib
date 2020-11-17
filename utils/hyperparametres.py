@@ -8,7 +8,11 @@ class BorderAssessment(Enum):
     MID = auto()
     UP = auto()
 
-def det_stop(len_dataset: int, len_output: int, gamma: float = 0.5) -> Tuple[float, float]:
+def det_stop(
+    len_dataset: int,
+    len_output: int,
+    gamma: float = 0.5
+    ) -> Tuple[float, float]:
     """
     Deterministic method for finding the learning stop criterion
     len_dataset : int - training sample size
@@ -23,7 +27,13 @@ def det_stop(len_dataset: int, len_output: int, gamma: float = 0.5) -> Tuple[flo
     e_h_s_lg = - 3 - 10 * np.log10(len_dataset) - 10 * np.log10(len_output)
     return e_h_s, e_h_s_lg
 
-def count_epochs(len_dataset: int, len_output: int, len_input: int, e_h_s_lg: float, neurons: List[int]) -> int:
+def count_epochs(
+    len_dataset: int,
+    len_output: int,
+    len_input: int,
+    e_h_s_lg: float,
+    neurons: List[int]
+    ) -> int:
     """
     Calculates the number of epoch for training
     len_dataset : int - training sample size
@@ -48,17 +58,23 @@ def count_epochs(len_dataset: int, len_output: int, len_input: int, e_h_s_lg: fl
     s_value_all += s_value_all * 0.1 
     return math.ceil(s_value_all)
 
-def num_neurons(len_input: int, len_output: int, len_dataset: int, num_hidden_layers: int = 2, border_assessment: BorderAssessment = BorderAssessment.MID) -> List[int]:
+def num_neurons(
+    len_input: int,
+    len_output: int,
+    len_dataset: int,
+    num_hidden_layers: int = 2,
+    border_assessment: BorderAssessment = BorderAssessment.MID
+    ) -> List[int]:
     """
     len_input - number of input parametres
     len_output - number of neurons in the output layer
     len_dataset - training sample size
     num_hidden_layers - number of hidden layers
-    border_assessment : "low", "mid", "up" 
+    border_assessment : BorderAssessment
     """
 
-    w_low = len_output * len_dataset/(1 + math.log2(len_dataset))  # w - weights
-    w_up = len_output * (len_dataset/len_input + 1) * (len_input + len_output + 1) + len_output
+    w_low = len_output * len_dataset / (1 + math.log2(len_dataset))  # w - weights
+    w_up = len_output * (len_dataset / len_input + 1) * (len_input + len_output + 1) + len_output
     w_mid = (w_low + w_up) / 2
 
     n_value = {
@@ -72,22 +88,32 @@ def num_neurons(len_input: int, len_output: int, len_dataset: int, num_hidden_la
         2:[math.ceil(2 / 3 * n_value + 1), math.ceil(1 / 3 * n_value + 1)]
     }[num_hidden_layers]
     
-def find_hyperparametres(len_dataset: int, len_output: int, len_input: int, num_hidden_layers: int = 2) -> Dict[str, float]:
-	stop = det_stop(len_dataset, len_output)
-	neurons_low = num_neurons(len_input, len_output, len_dataset, num_hidden_layers, border_assessment=BorderAssessment.LOW)
-	neurons_mid = num_neurons(len_input, len_output, len_dataset, num_hidden_layers, border_assessment=BorderAssessment.MID)
-	neurons_up = num_neurons(len_input, len_output, len_dataset, num_hidden_layers, border_assessment=BorderAssessment.UP)
-	epochs_low = count_epochs(len_dataset, len_output, len_input, stop[1], neurons_low)
-	epochs_mid = count_epochs(len_dataset, len_output, len_input, stop[1], neurons_mid)
-	epochs_up = count_epochs(len_dataset, len_output, len_input, stop[1], neurons_up)
-
-	dict_hyperparam = {'stop':stop[0],
-		        'stop_dB':stop[1],
-		        'neurons_low':neurons_low,
-		        'neurons_mid':neurons_mid,
-		        'neurons_up':neurons_up,
-		        'epochs_low':epochs_low,
-		        'epochs_mid':epochs_mid,
-		        'epochs_up':epochs_up}
-
-	return dict_hyperparam
+def find_hyperparametres(
+    len_dataset: int,
+    len_output: int,
+    len_input: int,
+    num_hidden_layers: int = 2
+    ) -> Tuple[Dict[str, Dict[str, List[int]], Dict[str, int]], Tuple[float, float]]:
+    stop = det_stop(len_dataset, len_output)
+    dict_h = {
+        'LOW':{'num_neurons':[], 'num_epochs':0},
+        'MID':{'num_neurons':[], 'num_epochs':0},
+        'UP':{'num_neurons':[], 'num_epochs':0},
+    }
+    for i,j in zip(BorderAssessment, dict_h.keys()):
+        neurons = num_neurons(
+            len_input,
+            len_output,
+            len_dataset,
+            num_hidden_layers,
+            border_assessment=i
+        )
+        epochs = count_epochs(
+            len_dataset,
+            len_output,
+            len_input,
+            stop[1],
+            neurons
+        )
+        dict_h.update({j: {'num_neurons':neurons,'num_epochs': epochs}})
+    return dict_h, stop
