@@ -28,9 +28,9 @@ def det_stop(
     return e_h_s, e_h_s_lg
 
 def count_epochs(
-    len_dataset: int,
-    len_output: int,
     len_input: int,
+    len_output: int,
+    len_dataset: int,
     e_h_s_lg: float,
     neurons: List[int]
     ) -> int:
@@ -78,10 +78,13 @@ def num_neurons(
     w_mid = (w_low + w_up) / 2
 
     n_value = {
-        1: w_low / (len_input + len_output),
-        2: w_mid / (len_input + len_output),
-        3: w_up / (len_input + len_output),
-    }[border_assessment.value]
+        BorderAssessment.LOW: w_low / (len_input + len_output),
+        BorderAssessment.MID: w_mid / (len_input + len_output),
+        BorderAssessment.UP: w_up / (len_input + len_output),
+    }[border_assessment]
+
+    if num_hidden_layers > 2:
+        raise Exception("Max number hidden layers = 2!")
 
     return {
         1:[math.ceil(n_value)],
@@ -95,22 +98,9 @@ def find_hyperparametres(
     num_hidden_layers: int = 2
     ) -> Tuple[Dict[BorderAssessment, Dict[str, List[int]]], Tuple[float, float]]:
     stop = det_stop(len_dataset, len_output)
-    dict_hyperparametres = {i: {'num_neurons': [], 'num_epochs': 0} for i in BorderAssessment}
-    for i in dict_hyperparametres.keys():
-        neurons = num_neurons(
-            len_input,
-            len_output,
-            len_dataset,
-            num_hidden_layers,
-            border_assessment = i
-        )
-        epochs = count_epochs(
-            len_dataset,
-            len_output,
-            len_input,
-            stop[1],
-            neurons
-        )
-        dict_hyperparametres[i]['num_neurons'] = neurons
-        dict_hyperparametres[i]['num_epochs'] = epochs
-    return dict_hyperparametres, stop
+    dict_hyper: Dict[q, a] = {}
+    for boarder_assesment in BorderAssessment:
+        neurons = num_neurons(len_input, len_output, len_dataset, num_hidden_layers, boarder_assesment)
+        epochs = count_epochs(len_input, len_output, len_dataset, stop[1], neurons)
+        dict_hyper[boarder_assesment] = dict(num_neurons=neurons, num_epochs=epochs)
+    return dict_hyper, stop
