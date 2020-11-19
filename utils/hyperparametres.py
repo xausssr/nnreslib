@@ -8,6 +8,14 @@ class BorderAssessment(Enum):
     MID = auto()
     UP = auto()
 
+class HiddenLayersCountException(ValueError):
+    """
+    Exeption raised for count hidden layers
+    """
+
+    def __init__(self):
+        ValueError.__init__(self, "Number hidden layers not in [1, 2]")
+
 def det_stop(
     len_dataset: int,
     len_output: int,
@@ -72,19 +80,17 @@ def num_neurons(
     num_hidden_layers - number of hidden layers
     border_assessment : BorderAssessment
     """
+    sum_parametres = len_input + len_output
+    w_low = len_output * len_dataset / (1 + math.log2(len_dataset))
+    w_up = len_output * (len_dataset / len_input + 1) * (sum_parametres + 1) + len_output
 
-    w_low = len_output * len_dataset / (1 + math.log2(len_dataset))  # w - weights
-    w_up = len_output * (len_dataset / len_input + 1) * (len_input + len_output + 1) + len_output
-    w_mid = (w_low + w_up) / 2
-
-    n_value = {
-        BorderAssessment.LOW: w_low / (len_input + len_output),
-        BorderAssessment.MID: w_mid / (len_input + len_output),
-        BorderAssessment.UP: w_up / (len_input + len_output),
-    }[border_assessment]
-
-    if num_hidden_layers > 2:
-        raise Exception("Max number hidden layers = 2!")
+    if border_assessment == BorderAssessment.LOW:
+        n_value = w_low / sum_parametres
+    elif border_assessment == BorderAssessment.MID:
+        w_mid = (w_low + w_up) / 2
+        n_value = w_mid / sum_parametres
+    elif border_assessment == BorderAssessment.UP:
+        n_value = w_up / sum_parametres
 
     return {
         1:[math.ceil(n_value)],
@@ -97,10 +103,15 @@ def find_hyperparametres(
     len_input: int,
     num_hidden_layers: int = 2
     ) -> Tuple[Dict[BorderAssessment, Dict[str, List[int]]], Tuple[float, float]]:
+
+    if num_hidden_layers not in [1, 2]:
+        raise HiddenLayersCountException
+
     stop = det_stop(len_dataset, len_output)
-    dict_hyper: Dict[q, a] = {}
-    for boarder_assesment in BorderAssessment:
-        neurons = num_neurons(len_input, len_output, len_dataset, num_hidden_layers, boarder_assesment)
+    dict_hyper: Dict[BorderAssessment, Dict[str, List[int]]] = {}
+
+    for border_assesment in BorderAssessment:
+        neurons = num_neurons(len_input, len_output, len_dataset, num_hidden_layers, border_assesment)
         epochs = count_epochs(len_input, len_output, len_dataset, stop[1], neurons)
-        dict_hyper[boarder_assesment] = dict(num_neurons=neurons, num_epochs=epochs)
+        dict_hyper[border_assesment] = dict(num_neurons=neurons, num_epochs=epochs)
     return dict_hyper, stop
