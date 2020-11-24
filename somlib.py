@@ -197,6 +197,7 @@ class NeuralNet:
         y_train,
         x_valid=None,
         y_valid=None,
+        train_test_split=0.3,
         mu_init=3.0,
         min_error=1e-10,
         max_steps=100,
@@ -204,7 +205,7 @@ class NeuralNet:
         mu_divide=10,
         m_into_epoch=10,
         verbose=False,
-        random_batches=True
+        random_batches=False
     ):
 
         # Batches to one shape
@@ -218,9 +219,9 @@ class NeuralNet:
         else:
             len_of_test = len(x_valid)
             len_of_train = len(x_train)
-            x_train, x_valid, y_train, y_valid = self.get_batches(x_train, x_valid, y_train, y_valid)
+            x_train, x_valid, y_train, y_valid = self.get_batches(x_train[0], x_valid[0], y_train[0], y_valid[0])
             batch_operate_flag = True
-
+        
         mu_track = {}
         for i in range(len(x_train)):
             mu_track[i] = mu_init
@@ -237,9 +238,9 @@ class NeuralNet:
         step = 0
 
         current_loss = self.current_learn_loss(x_train, y_train, np.array([mu_init]))
-        init_loss = current_loss
+        init_loss = current_loss        
 
-        while 10 * np.log(current_loss / init_loss) > min_error and step < max_steps:
+        while current_loss / init_loss > min_error and step < max_steps:
             step += 1
 
             for batch in range(len(mu_track)):
@@ -288,7 +289,7 @@ class NeuralNet:
             self.error_train["mae"].append(mae_train)
             self.error_test["mse"].append(mse_test)
             self.error_test["mae"].append(mae_test)
-            current_loss = self.current_learn_loss(x_train, y_train, np.asarray([mu_init])) / init_loss
+            current_loss = self.current_learn_loss(x_train, y_train, np.asarray([mu_init]))
 
         print(f"LevMarq ended on: {step:},\tfinal loss: {self.error_train['mse'][-1]:.2e}\n")
         self.session.run(self.p)
@@ -333,7 +334,7 @@ class NeuralNet:
         for batch in range(len(x_train)):
             train_dict = {self.x : x_train[batch], self.y : y_train[batch], self.mu : mu}
             loss += self.session.run(self.loss, train_dict)
-        return loss / len(x_train)
+        return loss
 
     def predict(self, data_to_predict, raw=True):
 
