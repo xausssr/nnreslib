@@ -31,7 +31,7 @@ settings = {
     "inputs": [28,28,1],
     "activation": "sigmoid",
 }
-
+ 
 # build CNN
 nn = NeuralNet(settings, verbose=True)
 
