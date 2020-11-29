@@ -31,27 +31,28 @@ settings = {
 }
 
 # Построение CНС
-#nn = NeuralNet(settings, verbose=True)
+nn = NeuralNet(settings, verbose=True)
 
-#nn.fit_lm(
-#    x_train=train_data[:,1:].reshape((-1,28,28,1)),
-#    y_train=np.eye(10)[train_data[:, 0]],
-#    x_valid=valid_data[:,1:].reshape((-1,28,28,1)),
-#    y_valid=np.eye(10)[valid_data[:, 0]],
-#    mu_init=5.0,
-#    min_error=2.083e-4,
-#    max_steps=6,
-#    mu_multiply=5,
-#    mu_divide=5,
-#    m_into_epoch=5,
-#    verbose=True,
-#)
+nn.fit_lm(
+    x_train=train_data[:,1:].reshape((-1,28,28,1)),
+    y_train=np.eye(10)[train_data[:, 0]],
+    x_valid=valid_data[:,1:].reshape((-1,28,28,1)),
+    y_valid=np.eye(10)[valid_data[:, 0]],
+    mu_init=5.0,
+    min_error=2.083e-4,
+    max_steps=6,
+    mu_multiply=5,
+    mu_divide=5,
+    m_into_epoch=5,
+    verbose=True,
+    random_batches=True
+)
 
 # Отрисовка обучения ИНС
-#nn.plot_lw(None, save=False, logscale=False)
+nn.plot_lw(None, save=False, logscale=False)
 
-#print(nn.predict(valid_data.values[:, :-5], raw=True)[:10])
-#print(nn.predict(valid_data.values[:, :-5], raw=False)[:10])
+print(nn.predict(valid_data.values[:, :-5], raw=True)[:10])
+print(nn.predict(valid_data.values[:, :-5], raw=False)[:10])
 
 print("\n\nТест полносвязной сети")
 
@@ -85,7 +86,7 @@ nn.fit_lm(
     y_valid=valid_data.values[:, -5:],
     mu_init=5.0,
     min_error=2.083e-4,
-    max_steps=3,
+    max_steps=1000,
     mu_multiply=10,
     mu_divide=10,
     m_into_epoch=5,

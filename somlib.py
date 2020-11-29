@@ -224,8 +224,6 @@ class NeuralNet:
             x_train_bk, x_valid_bk, y_train_bk, y_valid_bk = x_train, x_valid, y_train, y_valid
             x_train, x_valid, y_train, y_valid = self.get_batches(x_train, x_valid, y_train, y_valid)
             batch_operate_flag = True
-        
-        print("Debug:\n", self.len_of_train, "\n", self.len_of_test)
 
         mu_track = {}
         for i in range(len(x_train)):
@@ -317,12 +315,12 @@ class NeuralNet:
             mse_train += mae(
                 np.asarray(y_pred).ravel(),
                 np.asarray(y_train)[batch].ravel(),
-                self.len_of_train
+                self.len_of_train[batch]
             )
             mae_train += mae(
                     np.argmax(np.asarray(y_pred), axis=1),
                     np.argmax(np.asarray(y_train)[batch], axis=1),
-                    self.len_of_train
+                    self.len_of_train[batch]
             )
 
         (mse_test, mae_test) = (0, 0)
@@ -332,12 +330,12 @@ class NeuralNet:
             mse_test += mse(
                 np.asarray(y_pred_valid).ravel(), 
                 np.asarray(y_valid)[batch].ravel(),
-                self.len_of_test
+                self.len_of_test[batch]
             )
             mae_test += mae(
                     np.argmax(np.asarray(y_pred_valid), axis=1),
                     np.argmax(np.asarray(y_valid)[batch], axis=1),
-                    self.len_of_test
+                    self.len_of_test[batch]
             )
         
         return (
@@ -609,18 +607,18 @@ class NeuralNet:
             )
 
 
-def mae(vec_pred, vec_true, list_of_lenth):
+def mae(vec_pred, vec_true, batch_len):
         err = 0
-        for j in range(vec_true.shape[0]):
-            err += np.abs(vec_true[j] - vec_pred[j]) / list_of_lenth[j]
+        for j in range(batch_len):
+            err += np.abs(vec_true[j] - vec_pred[j]) / batch_len
 
-        return err / vec_true.shape[0]
+        return err / batch_len
 
-def mse(vec_pred, vec_true, list_of_lenth):
+def mse(vec_pred, vec_true, batch_len):
         err = 0
-        for j in range(vec_true.shape[0]):
-            err += np.sqrt(np.power(vec_true[j] - vec_pred[j], 2)) / list_of_lenth[j]
+        for j in range(batch_len):
+            err += np.sqrt(np.power(vec_true[j] - vec_pred[j], 2)) / batch_len
 
-        return err / vec_pred.shape[0]
+        return err / batch_len
 
 
