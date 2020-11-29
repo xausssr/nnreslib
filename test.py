@@ -90,7 +90,8 @@ nn.fit_lm(
     mu_divide=10,
     m_into_epoch=5,
     verbose=True,
-    random_batches=True
+    random_batches=True,
+    plot=False
 )
 
 # Plot erros NN
