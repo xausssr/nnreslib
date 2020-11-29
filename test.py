@@ -6,6 +6,8 @@ from somlib import NeuralNet
 
 path = Path(__file__).parent / "data"
 
+np.set_printoptions(precision=3)
+
 print("\n\nТест сверточной сети на наборе MNIST")
 
 train_data = pd.read_csv(path / 'mnist_train.csv', delimiter=',').values[:500]
@@ -51,8 +53,8 @@ nn.fit_lm(
 # Отрисовка обучения ИНС
 nn.plot_lw(None, save=False, logscale=False)
 
-print(nn.predict(valid_data.values[:, :-5], raw=True)[:10])
-print(nn.predict(valid_data.values[:, :-5], raw=False)[:10])
+print(nn.predict(valid_data[:,1:].reshape((-1,28,28,1)), raw=True)[:5])
+print(nn.predict(valid_data[:,1:].reshape((-1,28,28,1)), raw=False)[:5])
 
 print("\n\nТест полносвязной сети")
 
