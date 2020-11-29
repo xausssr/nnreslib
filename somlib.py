@@ -260,13 +260,14 @@ class NeuralNet:
                     error_string += f"test {err}: {self.error_test[err][-1]:.2e} "
                 print(f"LM step: {step}, {error_string}")
 
-            else if step % int(max_steps / 5) == 0 and verbose:
-                error_string = ""
-                for err in self.error_train.keys():
-                    error_string += f"train {err}: {self.error_train[err][-1]:.2e} "
-                for err in self.error_test.keys():
-                    error_string += f"test {err}: {self.error_test[err][-1]:.2e} "
-                print(f"LM step: {step}, {error_string}")
+            else: 
+                if step % int(max_steps / 5) == 0 and verbose:
+                    error_string = ""
+                    for err in self.error_train.keys():
+                        error_string += f"train {err}: {self.error_train[err][-1]:.2e} "
+                    for err in self.error_test.keys():
+                        error_string += f"test {err}: {self.error_test[err][-1]:.2e} "
+                    print(f"LM step: {step}, {error_string}")
 
             if random_batches == True and batch_operate_flag == True:
                 x_train, x_valid, y_train, y_valid = self.get_batches(x_train_bk, x_valid_bk, y_train_bk, y_valid_bk)
@@ -316,10 +317,12 @@ class NeuralNet:
             mse_train += mae(
                 np.asarray(y_pred).ravel(),
                 np.asarray(y_train)[batch].ravel(),
+                self.len_of_train
             )
             mae_train += mae(
                     np.argmax(np.asarray(y_pred), axis=1),
                     np.argmax(np.asarray(y_train)[batch], axis=1),
+                    self.len_of_train
             )
 
         (mse_test, mae_test) = (0, 0)
@@ -328,18 +331,20 @@ class NeuralNet:
             y_pred_valid = self.session.run(self.y_hat, valid_dict)                         
             mse_test += mse(
                 np.asarray(y_pred_valid).ravel(), 
-                np.asarray(y_valid)[batch].ravel()
+                np.asarray(y_valid)[batch].ravel(),
+                self.len_of_test
             )
             mae_test += mae(
                     np.argmax(np.asarray(y_pred_valid), axis=1),
                     np.argmax(np.asarray(y_valid)[batch], axis=1),
+                    self.len_of_test
             )
         
         return (
-            mse_train / len(x_train),
-            mae_train / len(x_train),
-            mse_test / len(x_valid),
-            mae_test / len(x_valid),
+            mse_train,
+            mae_train,
+            mse_test,
+            mae_test,
         )
     
     def current_learn_loss(self, x_train, y_train, mu):
@@ -604,19 +609,18 @@ class NeuralNet:
             )
 
 
-def mae(vec_pred, vec_true):
-    err = 0
-    for j in range(vec_true.shape[0]):
-        err += np.abs(vec_true[j] - vec_pred[j])
+def mae(vec_pred, vec_true, list_of_lenth):
+        err = 0
+        for j in range(vec_true.shape[0]):
+            err += np.abs(vec_true[j] - vec_pred[j]) / list_of_lenth[j]
 
-    return err / len(vec_pred)
+        return err / vec_true.shape[0]
 
+def mse(vec_pred, vec_true, list_of_lenth):
+        err = 0
+        for j in range(vec_true.shape[0]):
+            err += np.sqrt(np.power(vec_true[j] - vec_pred[j], 2)) / list_of_lenth[j]
 
-def mse(vec_pred, vec_true):
-    err = 0
-    for j in range(vec_true.shape[0]):
-        err += np.sqrt(np.power(vec_true[j] - vec_pred[j], 2))
-
-    return err / len(vec_pred)
+        return err / vec_pred.shape[0]
 
 
