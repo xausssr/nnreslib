@@ -392,14 +392,14 @@ class NeuralNet:
 
         if logscale == True:
             ax[0].plot(
-                [10 * np.log10(float(self.min_error))] * int(len(self.error_train["mse"])), "r--", label="Критерий останова"
+                [10 * np.log10(float(self.min_error))] * int(len(self.error_train["mse"])), "r--", label="Stop criteria"
             )
-            ax[0].plot(10 * np.log10(self.error_train["mse"] / self.error_train["mse"][0]), "g", label="MSE обучение")
-            ax[0].plot(10 * np.log10(self.error_test["mse"] / self.error_test["mse"][0]), "b", label="MSE тест")
+            ax[0].plot(10 * np.log10(self.error_train["mse"] / self.error_train["mse"][0]), "g", label="MSE error train")
+            ax[0].plot(10 * np.log10(self.error_test["mse"] / self.error_test["mse"][0]), "b", label="MSE error test")
             ax[0].set_ylabel("Ошибка MSE, дБ")
         else:
             ax[0].plot(
-                [float(self.min_error)] * int(len(self.error_train["mse"])), "r--", label="Критерий останова"
+                [float(self.min_error)] * int(len(self.error_train["mse"])), "r--", label="Stop criteria"
             )
             ax[0].plot(self.error_train["mse"], "g", label="MSE обучение")
             ax[0].plot(self.error_test["mse"], "b", label="MSE тест")
