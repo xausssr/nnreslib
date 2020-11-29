@@ -64,6 +64,15 @@ Every `key` of this `dict` is name of layer, e.g. "input", "layer_1", "first lay
 
     * `"softmax"`:<p align="center"> <img src="https://render.githubusercontent.com/render/math?math=\sigma (x)_{i} = \frac{e^{x_{i}}}{\sum^{K}_{k=1}{e^{x_{k}}}}"></p>
 
+Example of architecture dict:
+```python
+architecture = {
+    "input": {"type": "fully_conneted", "neurons": 31, "activation": "sigmoid"},
+    "hidden": {"type": "fully_conneted", "neurons": 18, "activation": "sigmoid"},
+    "out": {"type": "out", "neurons": 5, "activation": "sigmoid"},
+}
+```
+
 * специфичные ключи для **сверточного слоя**:
     * `"filtres"`: количество фильтров в сверточном слое, dtype: `int`;
     * `"kernel"` : размерность фильтра (сверточного ядра), данный ключ должен содержать список `list` длинной 2 с целочисленными данными `int` отображающими "ширину" и "высоту" сверточного ядра, dtype: `list`;
@@ -75,4 +84,13 @@ Every `key` of this `dict` is name of layer, e.g. "input", "layer_1", "first lay
 * специфичные ключи для **полносвязного слоя**:
     * `"neurons"`: количество нейронов в слое, dtype: `int`
 * слой **flatten** не имеет настраиваемых параметров.
+
+Пример словоря с описанием архитектуры:
+```python
+architecture = {
+    "input": {"type": "fully_conneted", "neurons": 31, "activation": "sigmoid"},
+    "hidden": {"type": "fully_conneted", "neurons": 18, "activation": "sigmoid"},
+    "out": {"type": "out", "neurons": 5, "activation": "sigmoid"},
+}
+```
 

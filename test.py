@@ -29,7 +29,6 @@ settings = {
     "batch_size": 100,
     "architecture": architecture,
     "inputs": [28,28,1],
-    "activation": "sigmoid",
 }
  
 # build CNN
@@ -71,10 +70,9 @@ architecture = {
 # Settings of train
 settings = {
     "outs": 5,
-    "batch_size": 110,
+    "batch_size": len(train_data),
     "architecture": architecture,
     "inputs": [len(train_data.columns) - 5],
-    "activation": "sigmoid",
 }
 
 nn = NeuralNet(settings, verbose=True)
