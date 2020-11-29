@@ -210,18 +210,23 @@ class NeuralNet:
 
         # Batches to one shape
         self.min_error = min_error
-        batch_operate_flag = False
-        if len(x_train) <= self.settings["batch_size"] and len(y_valid) <= self.settings["batch_size"]:
-            len_of_test = len(x_valid)
-            len_of_train = len(x_train)
-            x_train, x_valid, y_train, y_valid = self.batch_expansion(x_train, x_valid, y_train, y_valid)
+        self.len_of_test = None
+        self.len_of_train = None
 
+        if len(x_train) <= self.settings["batch_size"] and len(y_valid) <= self.settings["batch_size"]:
+            self.len_of_test = len(x_valid)
+            self.len_of_train = len(x_train)
+            x_train, x_valid, y_train, y_valid = self.batch_expansion(x_train, x_valid, y_train, y_valid)
+            batch_operate_flag = False
+
+        # Very expensive solution -- 2 times more memory used!
         else:
-            len_of_test = len(x_valid)
-            len_of_train = len(x_train)
-            x_train, x_valid, y_train, y_valid = self.get_batches(x_train[0], x_valid[0], y_train[0], y_valid[0])
+            x_train_bk, x_valid_bk, y_train_bk, y_valid_bk = x_train, x_valid, y_train, y_valid
+            x_train, x_valid, y_train, y_valid = self.get_batches(x_train, x_valid, y_train, y_valid)
             batch_operate_flag = True
         
+        print("Debug:\n", self.len_of_train, "\n", self.len_of_test)
+
         mu_track = {}
         for i in range(len(x_train)):
             mu_track[i] = mu_init
@@ -247,7 +252,15 @@ class NeuralNet:
                 if mu_track[batch] > 1e100 or mu_track[batch] < 1e-100:
                     mu_track[batch] = mu_init
 
-            if step % int(max_steps / 5) == 0 and verbose:
+            if max_steps <= 10 and verbose:
+                error_string = ""
+                for err in self.error_train.keys():
+                    error_string += f"train {err}: {self.error_train[err][-1]:.2e} "
+                for err in self.error_test.keys():
+                    error_string += f"test {err}: {self.error_test[err][-1]:.2e} "
+                print(f"LM step: {step}, {error_string}")
+
+            else if step % int(max_steps / 5) == 0 and verbose:
                 error_string = ""
                 for err in self.error_train.keys():
                     error_string += f"train {err}: {self.error_train[err][-1]:.2e} "
@@ -256,7 +269,7 @@ class NeuralNet:
                 print(f"LM step: {step}, {error_string}")
 
             if random_batches == True and batch_operate_flag == True:
-                x_train, x_valid, y_train, y_valid = self.get_batches(x_train, x_valid, y_train, y_valid)
+                x_train, x_valid, y_train, y_valid = self.get_batches(x_train_bk, x_valid_bk, y_train_bk, y_valid_bk)
 
             # Start batch
             for batch in range(len(x_train)):
@@ -431,6 +444,9 @@ class NeuralNet:
         x_train, y_train = self.shuffle_input_data(x_train, y_train) 
         x_test, y_test = self.shuffle_input_data(x_test, y_test)
 
+        self.len_of_train = []
+        self.len_of_test = []
+
         for i in range(x_train_count - 1):
             x_train_batches.append(
                 x_train[i * self.settings["batch_size"] : (i + 1) * self.settings["batch_size"]]
@@ -438,6 +454,8 @@ class NeuralNet:
             y_train_batches.append(
                 y_train[i * self.settings["batch_size"] : (i + 1) * self.settings["batch_size"]]
             )
+            
+            self.len_of_train.append(len(x_train_batches[-1]))
    
         x_train_batches.append(np.vstack([
             x_train[(x_train_count - 1) * self.settings["batch_size"] : ],
@@ -452,6 +470,8 @@ class NeuralNet:
             ]
         ]))
 
+        self.len_of_train.append(len(x_train[(x_train_count - 1) * self.settings["batch_size"] : ]))
+
         for i in range(x_test_count - 1):
             x_test_batches.append(
                 x_test[i * self.settings["batch_size"] : (i + 1) * self.settings["batch_size"]]
@@ -459,6 +479,9 @@ class NeuralNet:
             y_test_batches.append(
                 y_test[i * self.settings["batch_size"] : (i + 1) * self.settings["batch_size"]]
             )
+
+            self.len_of_test.append(len(x_test_batches[-1]))
+
         x_test_batches.append(np.vstack([
             x_test[(x_test_count - 1) * self.settings["batch_size"] : ],
             x_test[
@@ -471,6 +494,8 @@ class NeuralNet:
                 len(y_test[(x_test_count - 1) * self.settings["batch_size"] : ]) : self.settings["batch_size"]
             ]
         ]))
+
+        self.len_of_test.append(len(x_test[(x_test_count - 1) * self.settings["batch_size"] : ]))
 
         return (
             np.asarray(x_train_batches), 

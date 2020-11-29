@@ -68,7 +68,7 @@ architecture = {
 # Настройки обучения
 settings = {
     "outs": 5,
-    "batch_size": 240,
+    "batch_size": 110,
     "architecture": architecture,
     "inputs": [len(train_data.columns) - 5],
     "activation": "sigmoid",
@@ -85,11 +85,12 @@ nn.fit_lm(
     y_valid=valid_data.values[:, -5:],
     mu_init=5.0,
     min_error=2.083e-4,
-    max_steps=2500,
+    max_steps=25,
     mu_multiply=10,
     mu_divide=10,
     m_into_epoch=5,
     verbose=True,
+    random_batches=True
 )
 
 # Отрисовка обучения ИНС
