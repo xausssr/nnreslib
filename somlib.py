@@ -728,5 +728,5 @@ def mse(vec_pred, vec_true, batch_len):
         return err / batch_len
 
 def cat_cross(vec_pred, vec_true, batch_len):
-    vec_pred = np.clip(vec_pred, epsilon, 1. - epsilon)
+    vec_pred = np.clip(vec_pred, 1e-12, 1. - 1e-12)
     return -np.sum(vec_true * np.log(vec_pred + 1e-9)) / batch_len
