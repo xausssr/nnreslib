@@ -12,9 +12,10 @@ class HiddenLayersCountException(ValueError):
     """
     Exeption raised for count hidden layers
     """
+    pass
 
-    def __init__(self):
-        ValueError.__init__(self, "Number hidden layers not in [1, 2]")
+MIN_NUM_HIDDEN_LAYERS = 1
+MAX_NUM_HIDDEN_LAYERS = 2
 
 def det_stop(
     len_dataset: int,
@@ -84,6 +85,8 @@ def num_neurons(
     w_low = len_output * len_dataset / (1 + math.log2(len_dataset))
     w_up = len_output * (len_dataset / len_input + 1) * (sum_parametres + 1) + len_output
 
+    assert MIN_NUM_HIDDEN_LAYERS <= num_hidden_layers <= MAX_NUM_HIDDEN_LAYERS
+
     if border_assessment == BorderAssessment.LOW:
         n_value = w_low / sum_parametres
     elif border_assessment == BorderAssessment.MID:
@@ -104,8 +107,8 @@ def find_hyperparametres(
     num_hidden_layers: int = 2
     ) -> Tuple[Dict[BorderAssessment, Dict[str, List[int]]], Tuple[float, float]]:
 
-    if num_hidden_layers not in [1, 2]:
-        raise HiddenLayersCountException
+    if (MIN_NUM_HIDDEN_LAYERS > num_hidden_layers) or (MAX_NUM_HIDDEN_LAYERS < num_hidden_layers):
+        raise HiddenLayersCountException(f'Number hidden layers is not correct: min = {MIN_NUM_HIDDEN_LAYERS}, max = {MAX_NUM_HIDDEN_LAYERS}')
 
     stop = det_stop(len_dataset, len_output)
     dict_hyper: Dict[BorderAssessment, Dict[str, List[int]]] = {}
