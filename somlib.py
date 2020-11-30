@@ -236,8 +236,8 @@ class NeuralNet:
             mu_track[i] = mu_init
 
         #TODO Do this in dict and in __some_func()
-        self.error_train = {"mse": [], "mse_db": [], "mae": []}
-        self.error_test = {"mse": [], "mse_db": [], "mae": []}
+        self.error_train = {"mse": [], "mse_db": [], "mae": [], "cat_cross": []}
+        self.error_test = {"mse": [], "mse_db": [], "mae": [], "cat_cross": []}
 
         self.get_errors(x_train, y_train, x_valid, y_valid, mu_init)
         self.scale = 0
@@ -308,7 +308,7 @@ class NeuralNet:
         self.watch_metric.disabled = False
 
     def get_errors(self, x_train, y_train, x_valid, y_valid, mu):
-        (mse_train, mae_train) = (0, 0)
+        (mse_train, mae_train, cat_cross_train) = (0, 0, 0)
                
         for batch in range(len(x_train)):
             train_dict = {self.x : x_train[batch], self.y : y_train[batch], self.mu : np.asarray([mu])}
@@ -323,8 +323,16 @@ class NeuralNet:
                     np.argmax(np.asarray(y_train)[batch], axis=1),
                     self.len_of_train[batch]
             )
-
-        (mse_test, mae_test) = (0, 0)
+            if len(x_train.shape) > 2:
+                cat_cross_train += cat_cross(
+                    np.asarray(y_pred),
+                    np.asarray(y_train)[batch],
+                    self.len_of_train[batch]
+                )
+            else:
+                cat_cross_train = 0
+            
+        (mse_test, mae_test, cat_cross_test) = (0, 0, 0)
         for batch in range(len(x_valid)):
             valid_dict = {self.x : x_valid[batch], self.y : y_valid[batch], self.mu : np.asarray([mu])}
             y_pred_valid = self.session.run(self.y_hat, valid_dict)                         
@@ -338,6 +346,14 @@ class NeuralNet:
                     np.argmax(np.asarray(y_valid)[batch], axis=1),
                     self.len_of_test[batch]
             )
+            if len(x_train.shape) > 2:
+                cat_cross_test += cat_cross(
+                    np.asarray(y_pred_valid),
+                    np.asarray(y_valid)[batch],
+                    self.len_of_test[batch]
+                )
+            else:
+                cat_cross_test = 0
         
         self.error_train["mse"].append(mse_train)
         self.error_train["mae"].append(mae_train)
@@ -345,7 +361,8 @@ class NeuralNet:
         self.error_test["mae"].append(mae_test)
         self.error_train["mse_db"] = list(10 * np.log10(np.asarray(self.error_train["mse"]) / self.error_train["mse"][0]))
         self.error_test["mse_db"] = list(10 * np.log10(np.asarray(self.error_test["mse"]) / self.error_test["mse"][0]))
-
+        self.error_train["cat_cross"].append(cat_cross_train)
+        self.error_test["cat_cross"].append(cat_cross_test)
         return
 
     def _dynamic_plot(self, build=True):
@@ -359,7 +376,7 @@ class NeuralNet:
             )
 
             self.watch_metric = widgets.Dropdown(
-                options=[('mae', 0)],
+                options=[('mae', 0), ('categorical cross-entropy', 1)],
                 value=0,
                 description='Watch metric:',
                 disabled=True,
@@ -408,6 +425,9 @@ class NeuralNet:
             if self.metric == 0:
                 self.jupyter_figure_metric.data[0].y = self.error_train['mae']
                 self.jupyter_figure_metric.data[1].y = self.error_test['mae']
+            if self.metric == 1:
+                self.jupyter_figure_metric.data[0].y = self.error_train['cat_cross']
+                self.jupyter_figure_metric.data[1].y = self.error_test['cat_cross']
 
     def _response_scale(self, change):
         if change.new == 0:
@@ -423,7 +443,11 @@ class NeuralNet:
         if change.new == 0:
             self.jupyter_figure_metric.data[0].y = self.error_train['mae']
             self.jupyter_figure_metric.data[1].y = self.error_test['mae']
-            self.metric = 0
+            self.metric = change.new
+        if change.new == 1:
+            self.jupyter_figure_metric.data[0].y = self.error_train['cat_cross']
+            self.jupyter_figure_metric.data[1].y = self.error_test['cat_cross']
+            self.metric = change.new
 
 
 
@@ -703,4 +727,6 @@ def mse(vec_pred, vec_true, batch_len):
 
         return err / batch_len
 
-
+def cat_cross(vec_pred, vec_true, batch_len):
+    vec_pred = np.clip(vec_pred, epsilon, 1. - epsilon)
+    return -np.sum(vec_true * np.log(vec_pred + 1e-9)) / batch_len
