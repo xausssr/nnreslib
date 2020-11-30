@@ -257,8 +257,8 @@ class NeuralNet:
 
             if max_steps <= 10 and verbose:
                 error_string = ""
-                error_string += f"train {err}: {self.error_train['mse'][-1]:.2e} "
-                error_string += f"test {err}: {self.error_test['mse'][-1]:.2e}"
+                error_string += f"train mse: {self.error_train['mse'][-1]:.2e} "
+                error_string += f"test mse: {self.error_test['mse'][-1]:.2e}"
                 print(f"LM step: {step}, {error_string}")
 
             else: 
@@ -341,8 +341,8 @@ class NeuralNet:
         self.error_train["mae"].append(mae_train)
         self.error_test["mse"].append(mse_test)
         self.error_test["mae"].append(mae_test)
-        self.error_train["mse_db"] = list(np.asarray(self.error_train["mse"]) / self.error_train["mse"][0])
-        self.error_test["mse_db"] = list(np.asarray(self.error_test["mse"]) / self.error_test["mse"][0])
+        self.error_train["mse_db"] = list(10 * np.log10(np.asarray(self.error_train["mse"]) / self.error_train["mse"][0]))
+        self.error_test["mse_db"] = list(10 * np.log10(np.asarray(self.error_test["mse"]) / self.error_test["mse"][0]))
 
         return
 
@@ -411,11 +411,11 @@ class NeuralNet:
         if change == 0:
             self.jupyter_figure_train.data[0].y = self.error_train['mse']
             self.jupyter_figure_train.data[1].y = self.error_test['mse']
-            self.scale = 0
+            self.scale = change
         else:
             self.jupyter_figure_train.data[0].y = self.error_train['mse_db']
             self.jupyter_figure_train.data[1].y = self.error_test['mse_db']
-            self.scale = 1
+            self.scale = change
     
     def _response_metric(self, change):
         if change == 0:
