@@ -443,12 +443,13 @@ class NeuralNet:
         if change.new == 0:
             self.jupyter_figure_metric.data[0].y = self.error_train['mae']
             self.jupyter_figure_metric.data[1].y = self.error_test['mae']
+            self.jupyter_figure_metric.update_layout(title="Watching error (MAE)")
             self.metric = change.new
         if change.new == 1:
             self.jupyter_figure_metric.data[0].y = self.error_train['cat_cross']
             self.jupyter_figure_metric.data[1].y = self.error_test['cat_cross']
+            self.jupyter_figure_metric.update_layout(title="Watching error (Categorical cross-entropy)")
             self.metric = change.new
-
 
 
     def current_learn_loss(self, x_train, y_train, mu):
