@@ -304,6 +304,8 @@ class NeuralNet:
 
         print(f"LevMarq ended on: {step:},\tfinal loss: {self.error_train['mse'][-1]:.2e}\n")
         self.session.run(self.p)
+        self.train_scale.disabled = False
+        self.watch_metric.disabled = False
 
     def get_errors(self, x_train, y_train, x_valid, y_valid, mu):
         (mse_train, mae_train) = (0, 0)
@@ -353,14 +355,14 @@ class NeuralNet:
                 options=[('linear', 0), ('dB (relevant)', 1)],
                 value=0,
                 description='Axis scale:',
-                disabled=False,
+                disabled=True,
             )
 
             self.watch_metric = widgets.Dropdown(
                 options=[('mae', 0)],
                 value=0,
                 description='Watch metric:',
-                disabled=False,
+                disabled=True,
             )
 
             self.jupyter_figure_train = go.FigureWidget()
@@ -408,17 +410,17 @@ class NeuralNet:
                 self.jupyter_figure_metric.data[1].y = self.error_test['mae']
 
     def _response_scale(self, change):
-        if change == 0:
+        if change.new == 0:
             self.jupyter_figure_train.data[0].y = self.error_train['mse']
             self.jupyter_figure_train.data[1].y = self.error_test['mse']
-            self.scale = change
+            self.scale = change.new
         else:
             self.jupyter_figure_train.data[0].y = self.error_train['mse_db']
             self.jupyter_figure_train.data[1].y = self.error_test['mse_db']
-            self.scale = change
+            self.scale = change.new
     
     def _response_metric(self, change):
-        if change == 0:
+        if change.new == 0:
             self.jupyter_figure_metric.data[0].y = self.error_train['mae']
             self.jupyter_figure_metric.data[1].y = self.error_test['mae']
             self.metric = 0
