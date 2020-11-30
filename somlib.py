@@ -246,11 +246,21 @@ class NeuralNet:
 
         if plot_widget == True:
             jupyter_figure = go.FigureWidget()
-            jupyter_figure.add_scatter(y=self.error_train["mse"])
-            jupyter_figure.add_scatter(y=self.error_test["mse"])
+            jupyter_figure.add_scatter(y=self.error_train["mse"], name="Train")
+            jupyter_figure.add_scatter(y=self.error_test["mse"], name="Test")
+            jupyter_figure.update_layout(
+                title="Lerning error (MSE)",
+                xaxis_title="Epoch",
+                yaxis_title="Error",
+                font=dict(
+                    family="Courier New, monospace",
+                    size=18,
+                    color="RebeccaPurple"
+                )
+            )
+
             widget = widgets.VBox([jupyter_figure])
             display(widget)
-            print("debug\n", jupyter_figure)
 
         step = 0
 
@@ -318,6 +328,7 @@ class NeuralNet:
             current_loss = self.current_learn_loss(x_train, y_train, np.asarray([mu_init]))
             if plot_widget == True:
                 jupyter_figure.data[0].y = self.error_train["mse"]
+                jupyter_figure.data[1].y = self.error_test["mse"]
 
         print(f"LevMarq ended on: {step:},\tfinal loss: {self.error_train['mse'][-1]:.2e}\n")
         self.session.run(self.p)
