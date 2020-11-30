@@ -3,7 +3,11 @@ import math
 import matplotlib.pylab as plt
 import numpy as np
 from prettytable import PrettyTable
+
 import plotly.graph_objects as go
+from ipywidgets import widgets
+
+from IPython.display import display
 
 
 from utils.tf_helper import tf
@@ -207,8 +211,8 @@ class NeuralNet:
         mu_divide=10,
         m_into_epoch=10,
         verbose=False,
-        random_batches=False
-        plot=False
+        random_batches=False,
+        plot_widget=False
     ):
 
         # Batches to one shape
@@ -216,8 +220,8 @@ class NeuralNet:
         self.len_of_test = None
         self.len_of_train = None
         if len(x_train) <= self.settings["batch_size"] and len(y_valid) <= self.settings["batch_size"]:
-            self.len_of_test = len(x_valid)
-            self.len_of_train = len(x_train)
+            self.len_of_test = [len(x_valid)]
+            self.len_of_train = [len(x_train)]
             x_train, x_valid, y_train, y_valid = self.batch_expansion(x_train, x_valid, y_train, y_valid)
             batch_operate_flag = False
 
@@ -240,9 +244,13 @@ class NeuralNet:
         self.error_test["mse"].append(mse_test)
         self.error_test["mae"].append(mae_test)
 
-        jupyter_figure = go.FigureWidget()
-        jupyter_figure.add_scatter(y=self.error_train["mse"])
-        jupyter_figure.add_scatter(y=self.error_test["mse"])
+        if plot_widget == True:
+            jupyter_figure = go.FigureWidget()
+            jupyter_figure.add_scatter(y=self.error_train["mse"])
+            jupyter_figure.add_scatter(y=self.error_test["mse"])
+            widget = widgets.VBox([jupyter_figure])
+            display(widget)
+            print("debug\n", jupyter_figure)
 
         step = 0
 
@@ -308,8 +316,8 @@ class NeuralNet:
             self.error_test["mse"].append(mse_test)
             self.error_test["mae"].append(mae_test)
             current_loss = self.current_learn_loss(x_train, y_train, np.asarray([mu_init]))
-            jupyter_figure.data[0].y = self.error_train["mse"]
-            jupyter_figure.data[1].y = self.error_test["mse"]
+            if plot_widget == True:
+                jupyter_figure.data[0].y = self.error_train["mse"]
 
         print(f"LevMarq ended on: {step:},\tfinal loss: {self.error_train['mse'][-1]:.2e}\n")
         self.session.run(self.p)
