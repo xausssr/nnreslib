@@ -239,11 +239,7 @@ class NeuralNet:
         self.error_train = {"mse": [], "mae": []}
         self.error_test = {"mse": [], "mae": []}
 
-        mse_train, mae_train, mse_test, mae_test = self.get_errors(x_train, y_train, x_valid, y_valid, mu_init)
-        self.error_train["mse"].append(mse_train)
-        self.error_train["mae"].append(mae_train)
-        self.error_test["mse"].append(mse_test)
-        self.error_test["mae"].append(mae_test)
+        self.get_errors(x_train, y_train, x_valid, y_valid, mu_init)
 
         if plot_widget == True:
             jupyter_figure_train = go.FigureWidget()
@@ -292,19 +288,15 @@ class NeuralNet:
 
             if max_steps <= 10 and verbose:
                 error_string = ""
-                for err in self.error_train.keys():
-                    error_string += f"train {err}: {self.error_train[err][-1]:.2e} "
-                for err in self.error_test.keys():
-                    error_string += f"test {err}: {self.error_test[err][-1]:.2e} "
+                error_string += f"train {err}: {self.error_train["mse"][-1]:.2e} "
+                error_string += f"test {err}: {self.error_test["mse"][-1]:.2e} "
                 print(f"LM step: {step}, {error_string}")
 
             else: 
                 if step % int(max_steps / 5) == 0 and verbose:
                     error_string = ""
-                    for err in self.error_train.keys():
-                        error_string += f"train {err}: {self.error_train[err][-1]:.2e} "
-                    for err in self.error_test.keys():
-                        error_string += f"test {err}: {self.error_test[err][-1]:.2e} "
+                    error_string += f"train {err}: {self.error_train["mse"][-1]:.2e} "
+                    error_string += f"test {err}: {self.error_test["mse"][-1]:.2e} "
                     print(f"LM step: {step}, {error_string}")
 
             if random_batches == True and batch_operate_flag == True:
@@ -337,11 +329,7 @@ class NeuralNet:
                     # End batch
             
             #TODO Do this in dict
-            mse_train, mae_train, mse_test, mae_test = self.get_errors(x_train, y_train, x_valid, y_valid, mu_init)
-            self.error_train["mse"].append(mse_train)
-            self.error_train["mae"].append(mae_train)
-            self.error_test["mse"].append(mse_test)
-            self.error_test["mae"].append(mae_test)
+            self.get_errors(x_train, y_train, x_valid, y_valid, mu_init)
             
             if plot_widget == True:
                 jupyter_figure_train.data[0].y = self.error_train["mse"]
@@ -387,12 +375,12 @@ class NeuralNet:
                     self.len_of_test[batch]
             )
         
-        return (
-            mse_train,
-            mae_train,
-            mse_test,
-            mae_test,
-        )
+        self.error_train["mse"].append(mse_train)
+        self.error_train["mae"].append(mae_train)
+        self.error_test["mse"].append(mse_test)
+        self.error_test["mae"].append(mae_test)
+
+        return
     
     def current_learn_loss(self, x_train, y_train, mu):
         loss = 0
@@ -659,14 +647,14 @@ class NeuralNet:
 def mae(vec_pred, vec_true, batch_len):
         err = 0
         for j in range(batch_len):
-            err += np.abs(vec_true[j] - vec_pred[j]) / batch_len
+            err += np.abs(vec_true[j] - vec_pred[j])
 
         return err / batch_len
 
 def mse(vec_pred, vec_true, batch_len):
         err = 0
         for j in range(batch_len):
-            err += np.sqrt(np.power(vec_true[j] - vec_pred[j], 2)) / batch_len
+            err += np.sqrt(np.power(vec_true[j] - vec_pred[j], 2))
 
         return err / batch_len
 
