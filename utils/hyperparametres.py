@@ -28,19 +28,19 @@ def det_stop(
     len_output : int - number of neurons in the output layer
     gamma : float - error threshold
     
-    e_h_s_lg - stopping criterion in decibels
+    stop_criterion_decibels - stopping criterion in decibels
     """
-    e_n_0 = 0.25
-    e_n_s = 1 / (2 * len_dataset * len_output) * np.max([gamma ** 2, (1 - gamma) ** 2])
-    e_h_s = e_n_s / e_n_0
-    e_h_s_lg = - 3 - 10 * np.log10(len_dataset) - 10 * np.log10(len_output)
-    return e_h_s, e_h_s_lg
+    error_norm_0_epoch = 0.25
+    error_norm_s_epoch = 1 / (2 * len_dataset * len_output) * np.max([gamma ** 2, (1 - gamma) ** 2])
+    stop_criterion = error_norm_s_epoch / error_norm_0_epoch
+    stop_criterion_decibels = - 3 - 10 * np.log10(len_dataset) - 10 * np.log10(len_output)
+    return stop_criterion, stop_criterion_decibels
 
 def count_epochs(
     len_input: int,
     len_output: int,
     len_dataset: int,
-    e_h_s_lg: float,
+    stop_criterion_decibels: float,
     neurons: List[int]
     ) -> int:
     """
@@ -48,22 +48,22 @@ def count_epochs(
     len_dataset : int - training sample size
     len_output : int - number of neurons in the output layer
     len_input : int - number of input parameters
-    e_h_s_lg : float - stopping criterion in decibels
+    stop_criterion_decibels : float - stopping criterion in decibels
     neurons : list, tuple - distribution of neurons to hidden layers
     """
 
-    if e_h_s_lg > 0:
-        raise ValueError('e_h_s_lg must be negative')
+    if stop_criterion_decibels > 0:
+        raise ValueError('stop_criterion_decibels must be negative')
 
-    s_value = len_dataset * np.sqrt(-0.5 * e_h_s_lg)
-    w_e = (len_input + 1) * neurons[0] 
+    s_value = len_dataset * np.sqrt(-0.5 * stop_criterion_decibels)
+    weight_connections = (len_input + 1) * neurons[0]
     for i in range(len(neurons) - 1):
-        w_e += (neurons[i] + 1) * neurons[i+1]
-    w_e += (neurons[-1] + 1) * len_output
-    w_mp = w_e / (len_input * len_output)
-    n_e = np.sum(neurons) + len_output + len(neurons) + 1
-    w_n = w_e / n_e
-    s_value_all = s_value / (w_mp * w_n) ** (1 / 4)
+        weight_connections += (neurons[i] + 1) * neurons[i+1]
+    weight_connections += (neurons[-1] + 1) * len_output
+    wieght_norm = weight_connections / (len_input * len_output)
+    num_layers = np.sum(neurons) + len_output + len(neurons) + 1
+    num_weight_coeff = weight_connections / num_layers
+    s_value_all = s_value / (wieght_norm * num_weight_coeff) ** (1 / 4)
     s_value_all += s_value_all * 0.1 
     return math.ceil(s_value_all)
 
@@ -82,18 +82,18 @@ def num_neurons(
     border_assessment : BorderAssessment
     """
     sum_parametres = len_input + len_output
-    w_low = len_output * len_dataset / (1 + math.log2(len_dataset))
-    w_up = len_output * (len_dataset / len_input + 1) * (sum_parametres + 1) + len_output
+    weight_low = len_output * len_dataset / (1 + math.log2(len_dataset))
+    weight_up = len_output * (len_dataset / len_input + 1) * (sum_parametres + 1) + len_output
 
     assert MIN_NUM_HIDDEN_LAYERS <= num_hidden_layers <= MAX_NUM_HIDDEN_LAYERS
 
     if border_assessment == BorderAssessment.LOW:
-        n_value = w_low / sum_parametres
+        n_value = weight_low / sum_parametres
     elif border_assessment == BorderAssessment.MID:
-        w_mid = (w_low + w_up) / 2
-        n_value = w_mid / sum_parametres
+        weight_mid = (weight_low + weight_up) / 2
+        n_value = weight_mid / sum_parametres
     elif border_assessment == BorderAssessment.UP:
-        n_value = w_up / sum_parametres
+        n_value = weight_up / sum_parametres
 
     return {
         1:[math.ceil(n_value)],
