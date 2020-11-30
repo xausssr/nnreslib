@@ -235,6 +235,7 @@ class NeuralNet:
         for i in range(len(x_train)):
             mu_track[i] = mu_init
 
+        #TODO Do this in dict and in __some_func()
         self.error_train = {"mse": [], "mae": []}
         self.error_test = {"mse": [], "mae": []}
 
@@ -245,10 +246,10 @@ class NeuralNet:
         self.error_test["mae"].append(mae_test)
 
         if plot_widget == True:
-            jupyter_figure = go.FigureWidget()
-            jupyter_figure.add_scatter(y=self.error_train["mse"], name="Train")
-            jupyter_figure.add_scatter(y=self.error_test["mse"], name="Test")
-            jupyter_figure.update_layout(
+            jupyter_figure_train = go.FigureWidget()
+            jupyter_figure_train.add_scatter(y=self.error_train["mse"], name="Train")
+            jupyter_figure_train.add_scatter(y=self.error_test["mse"], name="Test")
+            jupyter_figure_train.update_layout(
                 title="Lerning error (MSE)",
                 xaxis_title="Epoch",
                 yaxis_title="Error",
@@ -259,8 +260,23 @@ class NeuralNet:
                 )
             )
 
-            widget = widgets.VBox([jupyter_figure])
+            jupyter_figure_metric = go.FigureWidget()
+            jupyter_figure_metric.add_scatter(y=self.error_train["mae"], name="Train")
+            jupyter_figure_metric.add_scatter(y=self.error_test["mae"], name="Test")
+            jupyter_figure_metric.update_layout(
+                title="Watching error (MAE)",
+                xaxis_title="Epoch",
+                yaxis_title="Error",
+                font=dict(
+                    family="Courier New, monospace",
+                    size=18,
+                    color="RebeccaPurple"
+                )
+            )
+
+            widget = widgets.VBox([jupyter_figure_train, jupyter_figure_metric])
             display(widget)
+        # This is end of todo above!
 
         step = 0
 
@@ -320,15 +336,21 @@ class NeuralNet:
                 
                     # End batch
             
+            #TODO Do this in dict
             mse_train, mae_train, mse_test, mae_test = self.get_errors(x_train, y_train, x_valid, y_valid, mu_init)
             self.error_train["mse"].append(mse_train)
             self.error_train["mae"].append(mae_train)
             self.error_test["mse"].append(mse_test)
             self.error_test["mae"].append(mae_test)
-            current_loss = self.current_learn_loss(x_train, y_train, np.asarray([mu_init]))
+            
             if plot_widget == True:
-                jupyter_figure.data[0].y = self.error_train["mse"]
-                jupyter_figure.data[1].y = self.error_test["mse"]
+                jupyter_figure_train.data[0].y = self.error_train["mse"]
+                jupyter_figure_train.data[1].y = self.error_test["mse"]
+                jupyter_figure_metric.data[0].y = self.error_train["mae"]
+                jupyter_figure_metric.data[1].y = self.error_test["mae"]
+            #This is end of above todo
+
+            current_loss = self.current_learn_loss(x_train, y_train, np.asarray([mu_init]))
 
         print(f"LevMarq ended on: {step:},\tfinal loss: {self.error_train['mse'][-1]:.2e}\n")
         self.session.run(self.p)
