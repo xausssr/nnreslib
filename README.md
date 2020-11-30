@@ -38,6 +38,15 @@ Every `key` of this `dict` is name of layer, e.g. "input", "layer_1", "first lay
     * `"neurons"`: number of hidden units (neurons) into layer, dtype: `int`
 * **flatten layer** has no parameters.
 
+Example of architecture defenition:
+```python
+architecture = {
+    "input": {"type": "fully_conneted", "neurons": 31, "activation": "sigmoid"},
+    "hidden": {"type": "fully_conneted", "neurons": 18, "activation": "sigmoid"},
+    "out": {"type": "out", "neurons": 5, "activation": "sigmoid"},
+}
+```
+
 Define basic settings of model
 
 Settings of model is `dict` with specific keys, from this settings class `NeuralNetwork` build tensorflow computation graph. Settings have number of `"keys"`:
