@@ -65,10 +65,9 @@ valid_data = pd.read_csv(path / "test.csv")
 len_dataset = len(train_data)
 input_len = len(train_data.columns) - 5
 
-# Настройки гиперпараметров
+# Settings hyperparametres
 settings_hyperparametres, stop = find_hyperparametres(len_dataset, 5, input_len)
 
-# Архитектура ИНС
 # Build perceptron
 architecture = {
     "l1": {"type": "fully_conneted", "neurons": settings_hyperparametres[BorderAssessment.MID]["num_neurons"][0], "activation": "sigmoid"},

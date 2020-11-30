@@ -3,6 +3,9 @@ import numpy as np
 from enum import Enum, auto
 from typing import List, Tuple, Dict
 
+MIN_NUM_HIDDEN_LAYERS = 1
+MAX_NUM_HIDDEN_LAYERS = 2
+
 class BorderAssessment(Enum):
     LOW = auto()
     MID = auto()
@@ -12,10 +15,6 @@ class HiddenLayersCountException(ValueError):
     """
     Exeption raised for count hidden layers
     """
-    pass
-
-MIN_NUM_HIDDEN_LAYERS = 1
-MAX_NUM_HIDDEN_LAYERS = 2
 
 def det_stop(
     len_dataset: int,
@@ -95,10 +94,11 @@ def num_neurons(
     elif border_assessment == BorderAssessment.UP:
         n_value = weight_up / sum_parametres
 
-    return {
-        1:[math.ceil(n_value)],
-        2:[math.ceil(2 / 3 * n_value + 1), math.ceil(1 / 3 * n_value + 1)]
-    }[num_hidden_layers]
+    if num_hidden_layers == 1:
+        return [math.ceil(n_value)]
+    elif num_hidden_layers == 2:
+        return [math.ceil(2 / 3 * n_value + 1), math.ceil(1 / 3 * n_value + 1)]
+    else: raise HiddenLayersCountException('Available 1 and 2 hidden layers')
     
 def find_hyperparametres(
     len_dataset: int,
@@ -107,7 +107,7 @@ def find_hyperparametres(
     num_hidden_layers: int = 2
     ) -> Tuple[Dict[BorderAssessment, Dict[str, List[int]]], Tuple[float, float]]:
 
-    if (MIN_NUM_HIDDEN_LAYERS > num_hidden_layers) or (MAX_NUM_HIDDEN_LAYERS < num_hidden_layers):
+    if (num_hidden_layers < MIN_NUM_HIDDEN_LAYERS) or (MAX_NUM_HIDDEN_LAYERS < num_hidden_layers):
         raise HiddenLayersCountException(f'Number hidden layers is not correct: min = {MIN_NUM_HIDDEN_LAYERS}, max = {MAX_NUM_HIDDEN_LAYERS}')
 
     stop = det_stop(len_dataset, len_output)
