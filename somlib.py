@@ -264,8 +264,8 @@ class NeuralNet:
             else: 
                 if step % int(max_steps / 5) == 0 and verbose:
                     error_string = ""
-                    error_string += f"train {err}: {self.error_train['mse'][-1]:.2e} "
-                    error_string += f"test {err}: {self.error_test['mse'][-1]:.2e} "
+                    error_string += f"train mse: {self.error_train['mse'][-1]:.2e} "
+                    error_string += f"test mse: {self.error_test['mse'][-1]:.2e} "
                     print(f"LM step: {step}, {error_string}")
 
             if random_batches == True and batch_operate_flag == True:
@@ -415,13 +415,13 @@ class NeuralNet:
         else:
             self.jupyter_figure_train.data[0].y = self.error_train['mse_db']
             self.jupyter_figure_train.data[1].y = self.error_test['mse_db']
-            self.metric = 1
+            self.scale = 1
     
     def _response_metric(self, change):
         if change == 0:
             self.jupyter_figure_metric.data[0].y = self.error_train['mae']
             self.jupyter_figure_metric.data[1].y = self.error_test['mae']
-            self.scale = 0
+            self.metric = 0
 
 
 
