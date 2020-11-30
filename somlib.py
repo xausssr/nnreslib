@@ -236,44 +236,13 @@ class NeuralNet:
             mu_track[i] = mu_init
 
         #TODO Do this in dict and in __some_func()
-        self.error_train = {"mse": [], "mae": []}
-        self.error_test = {"mse": [], "mae": []}
+        self.error_train = {"mse": [], "mse_db": [], "mae": []}
+        self.error_test = {"mse": [], "mse_db": [], "mae": []}
 
         self.get_errors(x_train, y_train, x_valid, y_valid, mu_init)
-
-        if plot_widget == True:
-            jupyter_figure_train = go.FigureWidget()
-            jupyter_figure_train.add_scatter(y=self.error_train["mse"], name="Train")
-            jupyter_figure_train.add_scatter(y=self.error_test["mse"], name="Test")
-            jupyter_figure_train.update_layout(
-                title="Lerning error (MSE)",
-                xaxis_title="Epoch",
-                yaxis_title="Error",
-                font=dict(
-                    family="Courier New, monospace",
-                    size=18,
-                    color="RebeccaPurple"
-                )
-            )
-
-            jupyter_figure_metric = go.FigureWidget()
-            jupyter_figure_metric.add_scatter(y=self.error_train["mae"], name="Train")
-            jupyter_figure_metric.add_scatter(y=self.error_test["mae"], name="Test")
-            jupyter_figure_metric.update_layout(
-                title="Watching error (MAE)",
-                xaxis_title="Epoch",
-                yaxis_title="Error",
-                font=dict(
-                    family="Courier New, monospace",
-                    size=18,
-                    color="RebeccaPurple"
-                )
-            )
-
-            widget = widgets.VBox([jupyter_figure_train, jupyter_figure_metric])
-            display(widget)
-        # This is end of todo above!
-
+        self.scale = 0
+        self.metric = 0
+        self._dynamic_plot(build=True)
         step = 0
 
         current_loss = self.current_learn_loss(x_train, y_train, np.array([mu_init]))
@@ -288,15 +257,15 @@ class NeuralNet:
 
             if max_steps <= 10 and verbose:
                 error_string = ""
-                error_string += f"train {err}: {self.error_train["mse"][-1]:.2e} "
-                error_string += f"test {err}: {self.error_test["mse"][-1]:.2e} "
+                error_string += f"train {err}: {self.error_train['mse'][-1]:.2e} "
+                error_string += f"test {err}: {self.error_test['mse'][-1]:.2e}"
                 print(f"LM step: {step}, {error_string}")
 
             else: 
                 if step % int(max_steps / 5) == 0 and verbose:
                     error_string = ""
-                    error_string += f"train {err}: {self.error_train["mse"][-1]:.2e} "
-                    error_string += f"test {err}: {self.error_test["mse"][-1]:.2e} "
+                    error_string += f"train {err}: {self.error_train['mse'][-1]:.2e} "
+                    error_string += f"test {err}: {self.error_test['mse'][-1]:.2e} "
                     print(f"LM step: {step}, {error_string}")
 
             if random_batches == True and batch_operate_flag == True:
@@ -328,15 +297,8 @@ class NeuralNet:
                 
                     # End batch
             
-            #TODO Do this in dict
             self.get_errors(x_train, y_train, x_valid, y_valid, mu_init)
-            
-            if plot_widget == True:
-                jupyter_figure_train.data[0].y = self.error_train["mse"]
-                jupyter_figure_train.data[1].y = self.error_test["mse"]
-                jupyter_figure_metric.data[0].y = self.error_train["mae"]
-                jupyter_figure_metric.data[1].y = self.error_test["mae"]
-            #This is end of above todo
+            self._dynamic_plot(build=False)
 
             current_loss = self.current_learn_loss(x_train, y_train, np.asarray([mu_init]))
 
@@ -379,9 +341,90 @@ class NeuralNet:
         self.error_train["mae"].append(mae_train)
         self.error_test["mse"].append(mse_test)
         self.error_test["mae"].append(mae_test)
+        self.error_train["mse_db"] = list(np.asarray(self.error_train["mse"]) / self.error_train["mse"][0])
+        self.error_test["mse_db"] = list(np.asarray(self.error_test["mse"]) / self.error_test["mse"][0])
 
         return
+
+    def _dynamic_plot(self, build=True):
+        
+        if build == True:
+            self.train_scale = widgets.Dropdown(
+                options=[('linear', 0), ('dB (relevant)', 1)],
+                value=0,
+                description='Axis scale:',
+                disabled=False,
+            )
+
+            self.watch_metric = widgets.Dropdown(
+                options=[('mae', 0)],
+                value=0,
+                description='Watch metric:',
+                disabled=False,
+            )
+
+            self.jupyter_figure_train = go.FigureWidget()
+            self.jupyter_figure_train.add_scatter(y=self.error_train["mse"], name="Train")
+            self.jupyter_figure_train.add_scatter(y=self.error_test["mse"], name="Test")
+            self.jupyter_figure_train.update_layout(
+                title="Lerning error (MSE)",
+                xaxis_title="Epoch",
+                yaxis_title="Error",
+                font=dict(
+                    family="Courier New, monospace",
+                    size=18,
+                    color="RebeccaPurple"
+                )
+            )
+
+            self.jupyter_figure_metric = go.FigureWidget()
+            self.jupyter_figure_metric.add_scatter(y=self.error_train["mae"], name="Train")
+            self.jupyter_figure_metric.add_scatter(y=self.error_test["mae"], name="Test")
+            self.jupyter_figure_metric.update_layout(
+                title="Watching error (MAE)",
+                xaxis_title="Epoch",
+                yaxis_title="Error",
+                font=dict(
+                    family="Courier New, monospace",
+                    size=18,
+                    color="RebeccaPurple"
+                )
+            )
+
+            self.widget = widgets.VBox([self.train_scale, self.jupyter_figure_train, self.watch_metric, self.jupyter_figure_metric])
+            self.train_scale.observe(self._response_scale, names="value")
+            self.watch_metric.observe(self._response_metric, names="value")
+            display(self.widget)
+        
+        if build == False:
+            if self.scale == 0:
+                self.jupyter_figure_train.data[0].y = self.error_train['mse']
+                self.jupyter_figure_train.data[1].y = self.error_test['mse']
+            else:
+                self.jupyter_figure_train.data[0].y = self.error_train['mse_db']
+                self.jupyter_figure_train.data[1].y = self.error_test['mse_db']
+            if self.metric == 0:
+                self.jupyter_figure_metric.data[0].y = self.error_train['mae']
+                self.jupyter_figure_metric.data[1].y = self.error_test['mae']
+
+    def _response_scale(self, change):
+        if change == 0:
+            self.jupyter_figure_train.data[0].y = self.error_train['mse']
+            self.jupyter_figure_train.data[1].y = self.error_test['mse']
+            self.scale = 0
+        else:
+            self.jupyter_figure_train.data[0].y = self.error_train['mse_db']
+            self.jupyter_figure_train.data[1].y = self.error_test['mse_db']
+            self.metric = 1
     
+    def _response_metric(self, change):
+        if change == 0:
+            self.jupyter_figure_metric.data[0].y = self.error_train['mae']
+            self.jupyter_figure_metric.data[1].y = self.error_test['mae']
+            self.scale = 0
+
+
+
     def current_learn_loss(self, x_train, y_train, mu):
         loss = 0
         for batch in range(len(x_train)):
