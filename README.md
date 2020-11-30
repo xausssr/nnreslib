@@ -38,6 +38,27 @@ Every `key` of this `dict` is name of layer, e.g. "input", "layer_1", "first lay
     * `"neurons"`: number of hidden units (neurons) into layer, dtype: `int`
 * **flatten layer** has no parameters.
 
+Define basic settings of model
+
+Settings of model is `dict` with specific keys, from this settings class `NeuralNetwork` build tensorflow computation graph. Settings have number of `"keys"`:
+* `"outs"`: number of output neurons (must match with `"neurons"` in `"out"` layer), dtype: `int`;
+* `"batch_size"`: batch size for trainig and runnig model, if data amount smallest than 5000 reccomend use all data in one batch, dtype: `int`;
+* `"architecture"`: dict with architecture (see above), dtype: `dict`;
+* `"inputs"`: shape of input object (ont training example), in case of fulle-connected network must bi `list` with one value, dtype: `list`
+
+Example of settings dict:
+
+```python
+batch_size = len(train_data)
+inputs_len = len(train_data.columns) - 5
+settings = {
+    "outs": 5,
+    "batch_size": 1024,
+    "architecture": architecture,
+    "inputs": [100],
+}
+```
+
 -----
 ## Описание
 
@@ -93,4 +114,23 @@ architecture = {
     "out": {"type": "out", "neurons": 5, "activation": "sigmoid"},
 }
 ```
+Задание базовых настроек модели
 
+Настройки модели представляют собой словарь (`dict`) со специфичными ключами. Используя данные настройки класс `NeuralNetwork` строит вычислительный граф. Настройки содержат следующие ключи (`"keys"`):
+* `"outs"`: количество выходных нейронов (должно совпадать с ключом `"neurons"` в слое `"out"`), dtype: `int`;
+* `"batch_size"`: размер мини-пакета для обучения и использования модели, если количество входных данных менее 5000, рекомендуется использовать все данные (`"batch_size":1`) dtype: `int`;
+* `"architecture"`: словарь с конфигурацией архитектуры (см. выше), dtype: `dict`;
+* `"inputs"`: форма входных данных (одного обучающего примера), в случае полносвязной сети, это должен быть список (`list`) с одним значением, dtype: `list`
+
+Пример настроек нейронной сети:
+
+```python
+batch_size = len(train_data)
+inputs_len = len(train_data.columns) - 5
+settings = {
+    "outs": 5,
+    "batch_size": 1024,
+    "architecture": architecture,
+    "inputs": [100],
+}
+```
