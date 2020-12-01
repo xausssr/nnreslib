@@ -98,7 +98,6 @@ def num_neurons(
         return [math.ceil(n_value)]
     elif num_hidden_layers == 2:
         return [math.ceil(2 / 3 * n_value + 1), math.ceil(1 / 3 * n_value + 1)]
-    else: raise HiddenLayersCountException('Available 1 and 2 hidden layers')
     
 def find_hyperparametres(
     len_dataset: int,
