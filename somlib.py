@@ -117,6 +117,8 @@ class NeuralNet:
         self.r = self.y - self.y_hat
         self.loss = tf.reduce_mean(tf.square(self.r), name="Loss")
 
+        self.grads_calcualte = tf.compat.v1.gradients(self.y_hat, self.x)
+
         # Build computation graph for Levenberg-Marqvardt algorithm
         self.opt = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=1)
         self.mu = tf.compat.v1.placeholder(tf.float64, shape=[1], name="mu")
@@ -238,6 +240,8 @@ class NeuralNet:
         #TODO Do this in dict and in __some_func()
         self.error_train = {"mse": [], "mse_db": [], "mae": [], "cat_cross": []}
         self.error_test = {"mse": [], "mse_db": [], "mae": [], "cat_cross": []}
+        self.grads_train = np.zeros(shape=x_train.shape[2:]) 
+        self.grads_valid = np.zeros(shape=x_valid.shape[2:])
 
         self.get_errors(x_train, y_train, x_valid, y_valid, mu_init)
         self.scale = 0
@@ -298,6 +302,7 @@ class NeuralNet:
                     # End batch
             
             self.get_errors(x_train, y_train, x_valid, y_valid, mu_init)
+            self.get_grads(x_train, x_valid)
             self._dynamic_plot(build=False)
 
             current_loss = self.current_learn_loss(x_train, y_train, np.asarray([mu_init]))
@@ -365,6 +370,27 @@ class NeuralNet:
         self.error_test["cat_cross"].append(cat_cross_test)
         return
 
+    def get_grads(self, x_train, x_test):
+        
+        self.grads_train = self.grads_train * 0
+        self.grads_valid = self.grads_valid * 0
+
+        for batch in range(len(x_train)):
+            self.grads_train += np.power(np.sum(
+                self.session.run(self.grads_calcualte, {self.x: x_train[batch]})[0],
+                axis=0
+            ), 2)
+            self.grads_valid += np.power(np.sum(
+                self.session.run(self.grads_calcualte, {self.x: x_test[batch]})[0], 
+                axis=0
+            ), 2)
+        
+        self.grads_train = np.exp(self.grads_train + 1e-13) / np.sum(np.exp(self.grads_train + 1e-13)) * 100.0
+        self.grads_valid = np.exp(self.grads_valid + 1e-13) / np.sum(np.exp(self.grads_valid + 1e-13)) * 100.0
+
+
+        
+
     def _dynamic_plot(self, build=True):
         
         if build == True:
@@ -410,7 +436,36 @@ class NeuralNet:
                 )
             )
 
-            self.widget = widgets.VBox([self.train_scale, self.jupyter_figure_train, self.watch_metric, self.jupyter_figure_metric])
+            self.jupyter_figure_grads = go.FigureWidget()
+            if len(self.settings["inputs"]) == 1:
+                self.jupyter_figure_grads.add_bar(
+                    x=[x for x in range(len(self.grads_train))], 
+                    y=self.grads_train, 
+                    name="Train"
+                )
+                self.jupyter_figure_grads.add_bar(
+                    x=[x for x in range(len(self.grads_valid))], 
+                    y=self.grads_valid, 
+                    name="Test"
+                )
+                self.jupyter_figure_grads.update_layout(
+                    title="Feature importance",
+                    xaxis_title="Feature",
+                    yaxis_title="Normed importance",
+                    font=dict(
+                        family="Courier New, monospace",
+                        size=18,
+                        color="RebeccaPurple"
+                    )
+                )
+
+            self.widget = widgets.VBox([
+                self.train_scale, 
+                self.jupyter_figure_train, 
+                self.watch_metric, 
+                self.jupyter_figure_metric, 
+                self.jupyter_figure_grads
+            ])
             self.train_scale.observe(self._response_scale, names="value")
             self.watch_metric.observe(self._response_metric, names="value")
             display(self.widget)
@@ -428,6 +483,8 @@ class NeuralNet:
             if self.metric == 1:
                 self.jupyter_figure_metric.data[0].y = self.error_train['cat_cross']
                 self.jupyter_figure_metric.data[1].y = self.error_test['cat_cross']
+            self.jupyter_figure_grads.data[0].y = self.grads_train
+            self.jupyter_figure_grads.data[1].y = self.grads_valid
 
     def _response_scale(self, change):
         if change.new == 0:
