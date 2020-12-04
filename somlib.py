@@ -5,6 +5,8 @@ import numpy as np
 from prettytable import PrettyTable
 
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
 from ipywidgets import widgets
 
 from IPython.display import display
@@ -237,7 +239,6 @@ class NeuralNet:
         for i in range(len(x_train)):
             mu_track[i] = mu_init
 
-        #TODO Do this in dict and in __some_func()
         self.error_train = {"mse": [], "mse_db": [], "mae": [], "cat_cross": []}
         self.error_test = {"mse": [], "mse_db": [], "mae": [], "cat_cross": []}
         self.grads_train = np.zeros(shape=x_train.shape[2:]) 
@@ -376,21 +377,18 @@ class NeuralNet:
         self.grads_valid = self.grads_valid * 0
 
         for batch in range(len(x_train)):
-            self.grads_train += np.power(np.sum(
+            self.grads_train += np.abs(np.sum(
                 self.session.run(self.grads_calcualte, {self.x: x_train[batch]})[0],
                 axis=0
-            ), 2)
-            self.grads_valid += np.power(np.sum(
+            ))
+            self.grads_valid += np.abs(np.sum(
                 self.session.run(self.grads_calcualte, {self.x: x_test[batch]})[0], 
                 axis=0
-            ), 2)
+            ))
         
         self.grads_train = np.exp(self.grads_train + 1e-13) / np.sum(np.exp(self.grads_train + 1e-13)) * 100.0
         self.grads_valid = np.exp(self.grads_valid + 1e-13) / np.sum(np.exp(self.grads_valid + 1e-13)) * 100.0
-
-
-        
-
+      
     def _dynamic_plot(self, build=True):
         
         if build == True:
@@ -436,8 +434,8 @@ class NeuralNet:
                 )
             )
 
-            self.jupyter_figure_grads = go.FigureWidget()
             if len(self.settings["inputs"]) == 1:
+                self.jupyter_figure_grads = go.FigureWidget()
                 self.jupyter_figure_grads.add_bar(
                     x=[x for x in range(len(self.grads_train))], 
                     y=self.grads_train, 
@@ -449,9 +447,39 @@ class NeuralNet:
                     name="Test"
                 )
                 self.jupyter_figure_grads.update_layout(
-                    title="Feature importance",
-                    xaxis_title="Feature",
-                    yaxis_title="Normed importance",
+                    title="Gradients",
+                    font=dict(
+                        family="Courier New, monospace",
+                        size=18,
+                        color="RebeccaPurple"
+                    )
+                )
+            if self.settings["inputs"][-1] == 1:
+                self.jupyter_figure_grads = go.FigureWidget(make_subplots(rows=1, cols=2))
+                self.jupyter_figure_grads.add_trace(
+                    go.Heatmap(
+                        x=np.arange(0, self.grads_train.shape[0]), 
+                        y=np.arange(0, self.grads_train.shape[1]), 
+                        z=self.grads_train.reshape([self.grads_train.shape[0], self.grads_train.shape[1]]), 
+                        type='heatmap', 
+                        colorscale='Greens'
+                        ), row=1, col=1
+                )
+                self.jupyter_figure_grads.add_trace(
+                    go.Heatmap(
+                        x=np.arange(0, self.grads_valid.shape[0]), 
+                        y=np.arange(0, self.grads_valid.shape[1]), 
+                        z=self.grads_train.reshape([self.grads_valid.shape[0], self.grads_valid.shape[1]]), 
+                        type='heatmap', 
+                        colorscale='Greens'
+                        ), row=1, col=2
+                )
+                self.jupyter_figure_grads.update_xaxes(title_text="Train", row=1, col=1, showticklabels = False)
+                self.jupyter_figure_grads.update_yaxes(row=1, col=1, showticklabels = False)
+                self.jupyter_figure_grads.update_xaxes(title_text="Test", row=1, col=2, showticklabels = False)
+                self.jupyter_figure_grads.update_yaxes(row=1, col=2, showticklabels = False)
+                self.jupyter_figure_grads.update_layout(
+                    title="Gradients",
                     font=dict(
                         family="Courier New, monospace",
                         size=18,
@@ -483,8 +511,13 @@ class NeuralNet:
             if self.metric == 1:
                 self.jupyter_figure_metric.data[0].y = self.error_train['cat_cross']
                 self.jupyter_figure_metric.data[1].y = self.error_test['cat_cross']
-            self.jupyter_figure_grads.data[0].y = self.grads_train
-            self.jupyter_figure_grads.data[1].y = self.grads_valid
+            if len(self.settings["inputs"]) == 1:
+                self.jupyter_figure_grads.data[0].y = self.grads_train
+                self.jupyter_figure_grads.data[1].y = self.grads_valid
+            if self.settings["inputs"][-1] == 1:
+                self.jupyter_figure_grads.data[0].z = self.grads_train.reshape([self.grads_train.shape[0], self.grads_train.shape[1]])
+                self.jupyter_figure_grads.data[1].z = self.grads_valid.reshape([self.grads_train.shape[0], self.grads_train.shape[1]])
+
 
     def _response_scale(self, change):
         if change.new == 0:
