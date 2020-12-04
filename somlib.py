@@ -446,39 +446,35 @@ class NeuralNet:
                     y=self.grads_valid, 
                     name="Test"
                 )
-                self.jupyter_figure_grads.update_layout(
-                    title="Gradients",
-                    font=dict(
-                        family="Courier New, monospace",
-                        size=18,
-                        color="RebeccaPurple"
+
+            else:
+                self.jupyter_figure_grads = go.FigureWidget(make_subplots(rows=2, cols=self.settings["inputs"][-1]))
+                
+                for chanel in range(self.settings["inputs"][-1]):
+                    self.jupyter_figure_grads.add_trace(
+                        go.Heatmap(
+                            x=np.arange(0, self.grads_train.shape[0]), 
+                            y=np.arange(0, self.grads_train.shape[1]), 
+                            z=self.grads_train[:,:,chanel], 
+                            type='heatmap', 
+                            colorscale='Greens'
+                            ), row=1, col=chanel + 1
                     )
-                )
-            if self.settings["inputs"][-1] == 1:
-                self.jupyter_figure_grads = go.FigureWidget(make_subplots(rows=1, cols=2))
-                self.jupyter_figure_grads.add_trace(
-                    go.Heatmap(
-                        x=np.arange(0, self.grads_train.shape[0]), 
-                        y=np.arange(0, self.grads_train.shape[1]), 
-                        z=self.grads_train.reshape([self.grads_train.shape[0], self.grads_train.shape[1]]), 
-                        type='heatmap', 
-                        colorscale='Greens'
-                        ), row=1, col=1
-                )
-                self.jupyter_figure_grads.add_trace(
-                    go.Heatmap(
-                        x=np.arange(0, self.grads_valid.shape[0]), 
-                        y=np.arange(0, self.grads_valid.shape[1]), 
-                        z=self.grads_train.reshape([self.grads_valid.shape[0], self.grads_valid.shape[1]]), 
-                        type='heatmap', 
-                        colorscale='Greens'
-                        ), row=1, col=2
-                )
-                self.jupyter_figure_grads.update_xaxes(title_text="Train", row=1, col=1, showticklabels = False)
-                self.jupyter_figure_grads.update_yaxes(row=1, col=1, showticklabels = False)
-                self.jupyter_figure_grads.update_xaxes(title_text="Test", row=1, col=2, showticklabels = False)
-                self.jupyter_figure_grads.update_yaxes(row=1, col=2, showticklabels = False)
-                self.jupyter_figure_grads.update_layout(
+                    self.jupyter_figure_grads.add_trace(
+                        go.Heatmap(
+                            x=np.arange(0, self.grads_valid.shape[0]), 
+                            y=np.arange(0, self.grads_valid.shape[1]), 
+                            z=self.grads_train[:,:,chanel], 
+                            type='heatmap', 
+                            colorscale='Greens'
+                            ), row=2, col=chanel + 1
+                    )
+                    self.jupyter_figure_grads.update_xaxes(title_text=f"Train, chanel {chanel + 1}", row=1, col=chanel + 1, showticklabels = False)
+                    self.jupyter_figure_grads.update_yaxes(row=1, col=chanel + 1, showticklabels = False)
+                    self.jupyter_figure_grads.update_xaxes(title_text=f"Test, chanel {chanel + 1}", row=2, col=chanel + 1, showticklabels = False)
+                    self.jupyter_figure_grads.update_yaxes(row=2, col=chanel + 1, showticklabels = False)
+
+            self.jupyter_figure_grads.update_layout(
                     title="Gradients",
                     font=dict(
                         family="Courier New, monospace",
@@ -514,9 +510,12 @@ class NeuralNet:
             if len(self.settings["inputs"]) == 1:
                 self.jupyter_figure_grads.data[0].y = self.grads_train
                 self.jupyter_figure_grads.data[1].y = self.grads_valid
-            if self.settings["inputs"][-1] == 1:
-                self.jupyter_figure_grads.data[0].z = self.grads_train.reshape([self.grads_train.shape[0], self.grads_train.shape[1]])
-                self.jupyter_figure_grads.data[1].z = self.grads_valid.reshape([self.grads_train.shape[0], self.grads_train.shape[1]])
+            else:
+                data_idx = 0
+                for chanel in range(self.settings["inputs"][-1]):
+                    self.jupyter_figure_grads.data[data_idx].z = self.grads_train[:,:,chanel]
+                    self.jupyter_figure_grads.data[data_idx + 1].z = self.grads_valid[:,:,chanel]
+                    data_idx += 2
 
 
     def _response_scale(self, change):
