@@ -3,6 +3,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 from somlib import NeuralNet
+from utils.hyperparametres import find_hyperparametres, BorderAssessment
 
 path = Path(__file__).parent / "data"
 
@@ -60,11 +61,17 @@ print("\n\nPerceptron test")
 train_data = pd.read_csv(path / "train.csv")
 valid_data = pd.read_csv(path / "test.csv")
 
+len_dataset = len(train_data)
+input_len = len(train_data.columns) - 5
+
+# Settings hyperparametres
+settings_hyperparametres, stop = find_hyperparametres(len_dataset, 5, input_len)
+
 # Build perceptron
 architecture = {
-    "l1": {"type": "fully_conneted", "neurons": 31, "activation": "sigmoid"},
-    "l2": {"type": "fully_conneted", "neurons": 18, "activation": "sigmoid"},
-    "out": {"type": "out", "neurons": 5, "activation": "sigmoid"},
+    "l1": {"type": "fully_conneted", "neurons": settings_hyperparametres[BorderAssessment.MID]["num_neurons"][0], "activation": "sigmoid"},
+    "l2": {"type": "fully_conneted", "neurons": settings_hyperparametres[BorderAssessment.MID]["num_neurons"][1], "activation": "tanh"},
+    "out": {"type": "out", "neurons": 5, "activation": "softmax"},
 }
 
 # Settings of train
@@ -84,10 +91,10 @@ nn.fit_lm(
     x_valid=valid_data.values[:, :-5],
     y_valid=valid_data.values[:, -5:],
     mu_init=5.0,
-    min_error=2.083e-4,
+    min_error=stop[0],
     max_steps=100,
-    mu_multiply=10,
-    mu_divide=10,
+    mu_multiply=5,
+    mu_divide=5,
     m_into_epoch=5,
     verbose=True,
     random_batches=True,
