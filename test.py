@@ -30,9 +30,8 @@ settings = {
     "batch_size": 100,
     "architecture": architecture,
     "inputs": [28,28,1],
-    "activation": "sigmoid",
 }
-
+ 
 # build CNN
 nn = NeuralNet(settings, verbose=True)
 
@@ -78,10 +77,9 @@ architecture = {
 # Settings of train
 settings = {
     "outs": 5,
-    "batch_size": 120,
+    "batch_size": len(train_data),
     "architecture": architecture,
-    "inputs": [input_len],
-    "activation": "sigmoid",
+    "inputs": [len(train_data.columns) - 5],
 }
 
 nn = NeuralNet(settings, verbose=True)
@@ -99,7 +97,8 @@ nn.fit_lm(
     mu_divide=5,
     m_into_epoch=5,
     verbose=True,
-    random_batches=True
+    random_batches=True,
+    plot=False
 )
 
 # Plot erros NN

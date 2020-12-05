@@ -4,6 +4,14 @@ import matplotlib.pylab as plt
 import numpy as np
 from prettytable import PrettyTable
 
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+from ipywidgets import widgets
+
+from IPython.display import display
+
+
 from utils.tf_helper import tf
 
 
@@ -111,6 +119,8 @@ class NeuralNet:
         self.r = self.y - self.y_hat
         self.loss = tf.reduce_mean(tf.square(self.r), name="Loss")
 
+        self.grads_calcualte = tf.compat.v1.gradients(self.y_hat, self.x)
+
         # Build computation graph for Levenberg-Marqvardt algorithm
         self.opt = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=1)
         self.mu = tf.compat.v1.placeholder(tf.float64, shape=[1], name="mu")
@@ -189,17 +199,17 @@ class NeuralNet:
         mu_divide=10,
         m_into_epoch=10,
         verbose=False,
-        random_batches=False
+        random_batches=False,
+        plot_widget=False
     ):
 
         # Batches to one shape
         self.min_error = min_error
         self.len_of_test = None
         self.len_of_train = None
-
         if len(x_train) <= self.settings["batch_size"] and len(y_valid) <= self.settings["batch_size"]:
-            self.len_of_test = len(x_valid)
-            self.len_of_train = len(x_train)
+            self.len_of_test = [len(x_valid)]
+            self.len_of_train = [len(x_train)]
             x_train, x_valid, y_train, y_valid = self.batch_expansion(x_train, x_valid, y_train, y_valid)
             batch_operate_flag = False
 
@@ -213,15 +223,15 @@ class NeuralNet:
         for i in range(len(x_train)):
             mu_track[i] = mu_init
 
-        self.error_train = {"mse": [], "mae": []}
-        self.error_test = {"mse": [], "mae": []}
+        self.error_train = {"mse": [], "mse_db": [], "mae": [], "cat_cross": []}
+        self.error_test = {"mse": [], "mse_db": [], "mae": [], "cat_cross": []}
+        self.grads_train = np.zeros(shape=x_train.shape[2:]) 
+        self.grads_valid = np.zeros(shape=x_valid.shape[2:])
 
-        mse_train, mae_train, mse_test, mae_test = self.get_errors(x_train, y_train, x_valid, y_valid, mu_init)
-        self.error_train["mse"].append(mse_train)
-        self.error_train["mae"].append(mae_train)
-        self.error_test["mse"].append(mse_test)
-        self.error_test["mae"].append(mae_test)
-
+        self.get_errors(x_train, y_train, x_valid, y_valid, mu_init)
+        self.scale = 0
+        self.metric = 0
+        self._dynamic_plot(build=True)
         step = 0
 
         current_loss = self.current_learn_loss(x_train, y_train, np.array([mu_init]))
@@ -236,19 +246,15 @@ class NeuralNet:
 
             if max_steps <= 10 and verbose:
                 error_string = ""
-                for err in self.error_train.keys():
-                    error_string += f"train {err}: {self.error_train[err][-1]:.2e} "
-                for err in self.error_test.keys():
-                    error_string += f"test {err}: {self.error_test[err][-1]:.2e} "
+                error_string += f"train mse: {self.error_train['mse'][-1]:.2e} "
+                error_string += f"test mse: {self.error_test['mse'][-1]:.2e}"
                 print(f"LM step: {step}, {error_string}")
 
             else: 
                 if step % int(max_steps / 5) == 0 and verbose:
                     error_string = ""
-                    for err in self.error_train.keys():
-                        error_string += f"train {err}: {self.error_train[err][-1]:.2e} "
-                    for err in self.error_test.keys():
-                        error_string += f"test {err}: {self.error_test[err][-1]:.2e} "
+                    error_string += f"train mse: {self.error_train['mse'][-1]:.2e} "
+                    error_string += f"test mse: {self.error_test['mse'][-1]:.2e} "
                     print(f"LM step: {step}, {error_string}")
 
             if random_batches == True and batch_operate_flag == True:
@@ -280,18 +286,19 @@ class NeuralNet:
                 
                     # End batch
             
-            mse_train, mae_train, mse_test, mae_test = self.get_errors(x_train, y_train, x_valid, y_valid, mu_init)
-            self.error_train["mse"].append(mse_train)
-            self.error_train["mae"].append(mae_train)
-            self.error_test["mse"].append(mse_test)
-            self.error_test["mae"].append(mae_test)
+            self.get_errors(x_train, y_train, x_valid, y_valid, mu_init)
+            self.get_grads(x_train, x_valid)
+            self._dynamic_plot(build=False)
+
             current_loss = self.current_learn_loss(x_train, y_train, np.asarray([mu_init]))
 
         print(f"LevMarq ended on: {step:},\tfinal loss: {self.error_train['mse'][-1]:.2e}\n")
         self.session.run(self.p)
+        self.train_scale.disabled = False
+        self.watch_metric.disabled = False
 
     def get_errors(self, x_train, y_train, x_valid, y_valid, mu):
-        (mse_train, mae_train) = (0, 0)
+        (mse_train, mae_train, cat_cross_train) = (0, 0, 0)
                
         for batch in range(len(x_train)):
             train_dict = {self.x : x_train[batch], self.y : y_train[batch], self.mu : np.asarray([mu])}
@@ -306,8 +313,16 @@ class NeuralNet:
                     np.argmax(np.asarray(y_train)[batch], axis=1),
                     self.len_of_train[batch]
             )
-
-        (mse_test, mae_test) = (0, 0)
+            if len(x_train.shape) > 2:
+                cat_cross_train += cat_cross(
+                    np.asarray(y_pred),
+                    np.asarray(y_train)[batch],
+                    self.len_of_train[batch]
+                )
+            else:
+                cat_cross_train = 0
+            
+        (mse_test, mae_test, cat_cross_test) = (0, 0, 0)
         for batch in range(len(x_valid)):
             valid_dict = {self.x : x_valid[batch], self.y : y_valid[batch], self.mu : np.asarray([mu])}
             y_pred_valid = self.session.run(self.y_hat, valid_dict)                         
@@ -321,14 +336,195 @@ class NeuralNet:
                     np.argmax(np.asarray(y_valid)[batch], axis=1),
                     self.len_of_test[batch]
             )
+            if len(x_train.shape) > 2:
+                cat_cross_test += cat_cross(
+                    np.asarray(y_pred_valid),
+                    np.asarray(y_valid)[batch],
+                    self.len_of_test[batch]
+                )
+            else:
+                cat_cross_test = 0
         
-        return (
-            mse_train,
-            mae_train,
-            mse_test,
-            mae_test,
-        )
+        self.error_train["mse"].append(mse_train)
+        self.error_train["mae"].append(mae_train)
+        self.error_test["mse"].append(mse_test)
+        self.error_test["mae"].append(mae_test)
+        self.error_train["mse_db"] = list(10 * np.log10(np.asarray(self.error_train["mse"]) / self.error_train["mse"][0]))
+        self.error_test["mse_db"] = list(10 * np.log10(np.asarray(self.error_test["mse"]) / self.error_test["mse"][0]))
+        self.error_train["cat_cross"].append(cat_cross_train)
+        self.error_test["cat_cross"].append(cat_cross_test)
+        return
+
+    def get_grads(self, x_train, x_test):
+        
+        self.grads_train = self.grads_train * 0
+        self.grads_valid = self.grads_valid * 0
+
+        for batch in range(len(x_train)):
+            self.grads_train += np.abs(np.sum(
+                self.session.run(self.grads_calcualte, {self.x: x_train[batch]})[0],
+                axis=0
+            ))
+            self.grads_valid += np.abs(np.sum(
+                self.session.run(self.grads_calcualte, {self.x: x_test[batch]})[0], 
+                axis=0
+            ))
+        
+        self.grads_train = np.exp(self.grads_train + 1e-13) / np.sum(np.exp(self.grads_train + 1e-13)) * 100.0
+        self.grads_valid = np.exp(self.grads_valid + 1e-13) / np.sum(np.exp(self.grads_valid + 1e-13)) * 100.0
+      
+    def _dynamic_plot(self, build=True):
+        
+        if build == True:
+            self.train_scale = widgets.Dropdown(
+                options=[('linear', 0), ('dB (relevant)', 1)],
+                value=0,
+                description='Axis scale:',
+                disabled=True,
+            )
+
+            self.watch_metric = widgets.Dropdown(
+                options=[('mae', 0), ('categorical cross-entropy', 1)],
+                value=0,
+                description='Watch metric:',
+                disabled=True,
+            )
+
+            self.jupyter_figure_train = go.FigureWidget()
+            self.jupyter_figure_train.add_scatter(y=self.error_train["mse"], name="Train")
+            self.jupyter_figure_train.add_scatter(y=self.error_test["mse"], name="Test")
+            self.jupyter_figure_train.update_layout(
+                title="Lerning error (MSE)",
+                xaxis_title="Epoch",
+                yaxis_title="Error",
+                font=dict(
+                    family="Courier New, monospace",
+                    size=18,
+                    color="RebeccaPurple"
+                )
+            )
+
+            self.jupyter_figure_metric = go.FigureWidget()
+            self.jupyter_figure_metric.add_scatter(y=self.error_train["mae"], name="Train")
+            self.jupyter_figure_metric.add_scatter(y=self.error_test["mae"], name="Test")
+            self.jupyter_figure_metric.update_layout(
+                title="Watching error (MAE)",
+                xaxis_title="Epoch",
+                yaxis_title="Error",
+                font=dict(
+                    family="Courier New, monospace",
+                    size=18,
+                    color="RebeccaPurple"
+                )
+            )
+
+            if len(self.settings["inputs"]) == 1:
+                self.jupyter_figure_grads = go.FigureWidget()
+                self.jupyter_figure_grads.add_bar(
+                    x=[x for x in range(len(self.grads_train))], 
+                    y=self.grads_train, 
+                    name="Train"
+                )
+                self.jupyter_figure_grads.add_bar(
+                    x=[x for x in range(len(self.grads_valid))], 
+                    y=self.grads_valid, 
+                    name="Test"
+                )
+
+            else:
+                self.jupyter_figure_grads = go.FigureWidget(make_subplots(rows=2, cols=self.settings["inputs"][-1]))
+                
+                for chanel in range(self.settings["inputs"][-1]):
+                    self.jupyter_figure_grads.add_trace(
+                        go.Heatmap(
+                            x=np.arange(0, self.grads_train.shape[0]), 
+                            y=np.arange(0, self.grads_train.shape[1]), 
+                            z=self.grads_train[:,:,chanel], 
+                            type='heatmap', 
+                            colorscale='Greens'
+                            ), row=1, col=chanel + 1
+                    )
+                    self.jupyter_figure_grads.add_trace(
+                        go.Heatmap(
+                            x=np.arange(0, self.grads_valid.shape[0]), 
+                            y=np.arange(0, self.grads_valid.shape[1]), 
+                            z=self.grads_train[:,:,chanel], 
+                            type='heatmap', 
+                            colorscale='Greens'
+                            ), row=2, col=chanel + 1
+                    )
+                    self.jupyter_figure_grads.update_xaxes(title_text=f"Train, chanel {chanel + 1}", row=1, col=chanel + 1, showticklabels = False)
+                    self.jupyter_figure_grads.update_yaxes(row=1, col=chanel + 1, showticklabels = False)
+                    self.jupyter_figure_grads.update_xaxes(title_text=f"Test, chanel {chanel + 1}", row=2, col=chanel + 1, showticklabels = False)
+                    self.jupyter_figure_grads.update_yaxes(row=2, col=chanel + 1, showticklabels = False)
+
+            self.jupyter_figure_grads.update_layout(
+                    title="Gradients",
+                    font=dict(
+                        family="Courier New, monospace",
+                        size=18,
+                        color="RebeccaPurple"
+                    )
+                )
+
+            self.widget = widgets.VBox([
+                self.train_scale, 
+                self.jupyter_figure_train, 
+                self.watch_metric, 
+                self.jupyter_figure_metric, 
+                self.jupyter_figure_grads
+            ])
+            self.train_scale.observe(self._response_scale, names="value")
+            self.watch_metric.observe(self._response_metric, names="value")
+            display(self.widget)
+        
+        if build == False:
+            if self.scale == 0:
+                self.jupyter_figure_train.data[0].y = self.error_train['mse']
+                self.jupyter_figure_train.data[1].y = self.error_test['mse']
+            else:
+                self.jupyter_figure_train.data[0].y = self.error_train['mse_db']
+                self.jupyter_figure_train.data[1].y = self.error_test['mse_db']
+            if self.metric == 0:
+                self.jupyter_figure_metric.data[0].y = self.error_train['mae']
+                self.jupyter_figure_metric.data[1].y = self.error_test['mae']
+            if self.metric == 1:
+                self.jupyter_figure_metric.data[0].y = self.error_train['cat_cross']
+                self.jupyter_figure_metric.data[1].y = self.error_test['cat_cross']
+            if len(self.settings["inputs"]) == 1:
+                self.jupyter_figure_grads.data[0].y = self.grads_train
+                self.jupyter_figure_grads.data[1].y = self.grads_valid
+            else:
+                data_idx = 0
+                for chanel in range(self.settings["inputs"][-1]):
+                    self.jupyter_figure_grads.data[data_idx].z = self.grads_train[:,:,chanel]
+                    self.jupyter_figure_grads.data[data_idx + 1].z = self.grads_valid[:,:,chanel]
+                    data_idx += 2
+
+
+    def _response_scale(self, change):
+        if change.new == 0:
+            self.jupyter_figure_train.data[0].y = self.error_train['mse']
+            self.jupyter_figure_train.data[1].y = self.error_test['mse']
+            self.scale = change.new
+        else:
+            self.jupyter_figure_train.data[0].y = self.error_train['mse_db']
+            self.jupyter_figure_train.data[1].y = self.error_test['mse_db']
+            self.scale = change.new
     
+    def _response_metric(self, change):
+        if change.new == 0:
+            self.jupyter_figure_metric.data[0].y = self.error_train['mae']
+            self.jupyter_figure_metric.data[1].y = self.error_test['mae']
+            self.jupyter_figure_metric.update_layout(title="Watching error (MAE)")
+            self.metric = change.new
+        if change.new == 1:
+            self.jupyter_figure_metric.data[0].y = self.error_train['cat_cross']
+            self.jupyter_figure_metric.data[1].y = self.error_test['cat_cross']
+            self.jupyter_figure_metric.update_layout(title="Watching error (Categorical cross-entropy)")
+            self.metric = change.new
+
+
     def current_learn_loss(self, x_train, y_train, mu):
         loss = 0
         for batch in range(len(x_train)):
@@ -594,15 +790,17 @@ class NeuralNet:
 def mae(vec_pred, vec_true, batch_len):
         err = 0
         for j in range(batch_len):
-            err += np.abs(vec_true[j] - vec_pred[j]) / batch_len
+            err += np.abs(vec_true[j] - vec_pred[j])
 
         return err / batch_len
 
 def mse(vec_pred, vec_true, batch_len):
         err = 0
         for j in range(batch_len):
-            err += np.sqrt(np.power(vec_true[j] - vec_pred[j], 2)) / batch_len
+            err += np.sqrt(np.power(vec_true[j] - vec_pred[j], 2))
 
         return err / batch_len
 
-
+def cat_cross(vec_pred, vec_true, batch_len):
+    vec_pred = np.clip(vec_pred, 1e-12, 1. - 1e-12)
+    return -np.sum(vec_true * np.log(vec_pred + 1e-9)) / batch_len
