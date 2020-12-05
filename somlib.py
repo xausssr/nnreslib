@@ -124,43 +124,27 @@ class NeuralNet:
         # Build computation graph for Levenberg-Marqvardt algorithm
         self.opt = tf.compat.v1.train.GradientDescentOptimizer(learning_rate=1)
         self.mu = tf.compat.v1.placeholder(tf.float64, shape=[1], name="mu")
-        self.p_store = tf.Variable(tf.zeros([self.neurons_cnt], dtype=tf.float64))
-        self.save_parms = tf.compat.v1.assign(self.p_store, self.p)
-        self.restore_parms = tf.compat.v1.assign(self.p, self.p_store)
+       
 
         #=============================================
-        def jacobian(y, x, m):
-            loop_vars = [
-                tf.constant(0, tf.int32),
-                tf.TensorArray(tf.float64, size=m),
-            ]
-
-            _, jacobian = tf.while_loop(
-                lambda i, _: i < m, lambda i, res: (i + 1, res.write(i, tf.gradients(y[i], x)[0])), loop_vars
-            )
-
-            return jacobian.stack()
-
+        # TODO Add Hessian approximation
         self.I = tf.eye(self.neurons_cnt, dtype=tf.float64)
-        self.j = jacobian(self.y_hat_flat, self.p, self.m)
-        self.jT = tf.transpose(self.j)
-        self.jTj = tf.matmul(self.jT, self.j)
-        self.jTr = tf.matmul(self.jT, self.r)
-        self.jTj = tf.hessians(self.loss, self.p)[0]
-        self.jTr = -tf.gradients(self.loss, self.p)[0]
-        self.jTr = tf.reshape(self.jTr, shape=(self.neurons_cnt, 1))
+        self.hess = tf.hessians(self.loss, self.p)[0]
+        self.g = -tf.gradients(self.loss, self.p)[0]
+        self.g = tf.reshape(self.g, shape=(self.neurons_cnt, 1))
 
-        self.jTj_store = tf.Variable(tf.zeros((self.neurons_cnt, self.neurons_cnt), dtype=tf.float64))
-        self.jTr_store = tf.Variable(tf.zeros((self.neurons_cnt, 1), dtype=tf.float64))
-        self.save_jTj_jTr = [
-            tf.compat.v1.assign(self.jTj_store, self.jTj),
-            tf.compat.v1.assign(self.jTr_store, self.jTr),
+        self.p_store = tf.Variable(tf.zeros([self.neurons_cnt], dtype=tf.float64))
+        self.hess_store = tf.Variable(tf.zeros((self.neurons_cnt, self.neurons_cnt), dtype=tf.float64))
+        self.g_store = tf.Variable(tf.zeros((self.neurons_cnt, 1), dtype=tf.float64))
+        self.save_parms = tf.compat.v1.assign(self.p_store, self.p)
+        self.restore_parms = tf.compat.v1.assign(self.p, self.p_store)
+        self.save_hess_g = [
+            tf.compat.v1.assign(self.hess_store, self.hess),
+            tf.compat.v1.assign(self.g_store, self.g),
         ]
 
-        self.dx = tf.matmul(tf.linalg.inv(self.jTj_store + tf.multiply(self.mu, self.I)), self.jTr_store)
+        self.dx = tf.matmul(tf.linalg.inv(self.hess_store + tf.multiply(self.mu, self.I)), self.g_store)
         self.dx = tf.squeeze(self.dx)
-        self._dx = tf.matmul(tf.linalg.inv(self.jTj + tf.multiply(self.mu, self.I)), self.jTr)
-        self._dx = -tf.squeeze(self._dx)
 
         self.lm = self.opt.apply_gradients([(-self.dx, self.p)])
 
@@ -285,7 +269,7 @@ class NeuralNet:
                 train_dict[self.x] = x_train[batch]
                 train_dict[self.y] = y_train[batch]
                 self.session.run(self.save_parms)
-                self.session.run(self.save_jTj_jTr, train_dict)
+                self.session.run(self.save_hess_g, train_dict)
                 sub_epoch = 0
                 while sub_epoch < m_into_epoch:
                     self.session.run(self.lm, train_dict)
