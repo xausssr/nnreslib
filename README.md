@@ -10,14 +10,14 @@
 [![github issues img]][github issues]
 [![github tutorial img]][github tutorial]
 
-[github workflow tests img]: https://github.com/xaussr/nnreslib/workflows/Tests/badge.svg?branch=main
-[github workflow tests]: https://github.com/xaussr/nnreslib/actions?query=workflow%3ATests
+[github workflow tests img]: https://github.com/xausssr/nnreslib/workflows/Tests/badge.svg?branch=main
+[github workflow tests]: https://github.com/xausssr/nnreslib/actions?query=workflow%3ATests
 
-[github workflow release img]: https://github.com/xaussr/nnreslib/workflows/Release/badge.svg
-[github workflow release]: https://github.com/xaussr/nnreslib/actions?query=workflow%3ARelease
+[github workflow release img]: https://github.com/xausssr/nnreslib/workflows/Release/badge.svg
+[github workflow release]: https://github.com/xausssr/nnreslib/actions?query=workflow%3ARelease
 
-[codecov img]: https://codecov.io/gh/xaussr/nnreslib/branch/master/graph/badge.svg?token=JFA88DQ3T4
-[codecov]: https://codecov.io/gh/xaussr/nnreslib
+[codecov img]: https://codecov.io/gh/xausssr/nnreslib/branch/master/graph/badge.svg?token=JFA88DQ3T4
+[codecov]: https://codecov.io/gh/xausssr/nnreslib
 
 [code style img]: https://img.shields.io/badge/code%20style-black-000000.svg
 [code style]: https://github.com/psf/black
@@ -26,7 +26,7 @@
 [pre-commit]: https://github.com/pre-commit/pre-commit
 
 [github issues img]: https://img.shields.io/badge/issue_tracking-github-blue.svg
-[github issues]: https://github.com/xaussr/nnreslib/issues
+[github issues]: https://github.com/xausssr/nnreslib/issues
 
 [github tutorial img]: https://img.shields.io/badge/PR-Welcome-%23FF8300.svg?
 [github tutorial]: https://git-scm.com/book/en/v2/GitHub-Contributing-to-a-Project
