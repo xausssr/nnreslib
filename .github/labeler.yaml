@@ -1,0 +1,25 @@
+type:CI/CD:
+  - .github/**
+  - .pre-commit-config.yaml
+  - pyproject.toml
+  - setup.cfg
+
+type:packaging:
+  - setup.*
+  - VERSION
+  - MANIFEST.in
+
+type:documentation:
+  - doc/**
+
+type:tests:
+  - tests/**
+
+type:source:
+  - nnreslib/**
+
+type:requirements:
+  - requirements/*
+
+type:repo:
+  - ./*

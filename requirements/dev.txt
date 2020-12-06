@@ -1,0 +1,4 @@
+-r ./linting.txt
+-r ./main.txt
+
+pre-commit

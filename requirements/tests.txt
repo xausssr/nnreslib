@@ -1,0 +1,9 @@
+-r ./linting.txt
+-r ./build.txt
+
+pytest-flake8
+pytest-pylint
+pytest-pycodestyle
+pytest-mypy
+pytest-isort
+pytest-black
