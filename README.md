@@ -1,4 +1,4 @@
-# LevenbergLib
+# nnreslib
 
 [![github workflow tests img]][github workflow tests]
 [![github workflow release img]][github workflow release]
