@@ -22,7 +22,6 @@ class NeuralNet:
             settings (dict): Словарь с описанием ИНС
             verbose (bool): Флаг для вывода на печать информации о ИНС
         """
-
         self.settings = settings
 
         self.outs = settings["outs"]
