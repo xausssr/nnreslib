@@ -1,0 +1,12 @@
+include VERSION
+include LICENSE
+include README.md
+include py.typed
+
+exclude requirements/*.txt
+include requirements/main.txt
+
+global-exclude *.py[cod]
+global-exclude __pycache__
+global-exclude *.egg-info
+global-exclude .mypy_cache

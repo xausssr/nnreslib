@@ -1,0 +1,34 @@
+name-template: "nnreslib: v$RESOLVED_VERSION"
+tag-template: v$RESOLVED_VERSION
+change-template: "* $TITLE #$NUMBER (@$AUTHOR)"
+template: |
+  # What's Changed
+
+  $CHANGES
+categories:
+  - title: "Breaking"
+    label: "type:breaking"
+  - title: "🚀 New"
+    label: "type:feature"
+  - title: "Bug Fixes"
+    label: "type:bug"
+  - title: "Documentation"
+    label: "type:documentation"
+  - title: "Dependency Updates"
+    label: "type:requirements"
+  - title: "Tests Updates"
+    label: "type:tests"
+
+version-resolver:
+  major:
+    labels:
+      - "type:breaking"
+  minor:
+    labels:
+      - "type:feature"
+  patch:
+    labels:
+      - "type:bug"
+      - "type:documentation"
+      - "type:requirements"
+      - "type:tests"

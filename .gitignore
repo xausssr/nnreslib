@@ -2,7 +2,7 @@
 .venv
 .env
 env
-venv
+venv*
 
 # VSCode
 .vscode
@@ -16,3 +16,21 @@ __pycache__/
 
 # mypy
 .mypy_cache/
+
+# pytest
+.pytest_cache
+
+# Distribution / packaging
+build/
+dist/
+pip-wheel-metadata/
+*.egg-info/
+
+# Local GitHub actions
+/act
+
+# Test results
+/test-results
+
+# Code coverage results
+/coverage
