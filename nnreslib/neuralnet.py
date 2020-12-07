@@ -42,7 +42,7 @@ class NeuralNet:
             if isinstance(layer, ConvolutionLayer):
                 last_filters_count = layer.filters
             if isinstance(layer, FlattenLayer):
-                layer.out_shape = Shape(pre_layer_inputs.prod() * last_filters_count)
+                layer.out_shape = Shape(pre_layer_inputs.prod * last_filters_count)
 
             pre_layer_type = type(layer)
             pre_layer_inputs = layer.out_shape
