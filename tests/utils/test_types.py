@@ -55,3 +55,18 @@ def test_shape_index():
     with pytest.raises(IndexError):
         Shape(1, 2, 3)[10]  # pylint:disable=expression-not-assigned
     assert Shape(1, 2, 3)[1] == 2
+
+
+def test_shape_equal():
+    assert Shape() == Shape()
+    assert Shape(1, 2, 3) == Shape(1, 2, 3)
+    assert Shape(1, 2, 3) != Shape(10)
+    assert Shape(1, 2) != Shape(10, 20)
+    assert Shape(1) != 1
+    assert Shape() != "test"
+
+
+def test_shape_str():
+    assert str(Shape()) == "Shape: "
+    assert str(Shape(1)) == "Shape: 1"
+    assert str(Shape(1, 2, 3)) == "Shape: 1x2x3"
