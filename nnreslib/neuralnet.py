@@ -23,7 +23,9 @@ class NeuralNet:
     def check_arch(self) -> bool:
         # Check correct of graph (for example: convolution out shape not negative)
         layers = self.settings.architecture
-        flatten_layer_count = 0
+        if not layers:
+            logger.error("Specify architecture in settings!")
+            return False
         last_filters_count = self.settings.inputs[-1]
         pre_layer_type: Type[Layer] = ConvolutionLayer
         pre_layer_inputs = self.settings.inputs
@@ -36,21 +38,20 @@ class NeuralNet:
             ):
                 return False
             if not isinstance(layer, FullyConnectedLayer):
-                pad = Shape()
+                pad = Shape(0, 0, is_null=True)
                 if isinstance(layer, ConvolutionLayer):
                     pad = 2 * layer.pad
-                layer.out_shape = layer.make_out_shape(pre_layer_inputs, pad)
+                try:
+                    layer.out_shape = layer.make_out_shape(pre_layer_inputs, pad)
+                except ValueError:
+                    logger.error("Output tensor have a zero lenth along one of dimentions! (%s)", layer)
+                    return False
                 if isinstance(layer, ConvolutionLayer):
                     last_filters_count = layer.filters
                 if isinstance(layer, FlattenLayer):
                     layer.out_shape = Shape(pre_layer_inputs.prod * last_filters_count)
-                    flatten_layer_count += 1
-                    if flatten_layer_count > 1:
-                        logger.error("@xausssr")
-                        return False
                 pre_layer_inputs = layer.out_shape
             pre_layer_type = type(layer)
-
         return True
 
     def build_graph(self) -> None:
