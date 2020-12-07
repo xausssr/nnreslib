@@ -19,6 +19,8 @@ class Shape:
         for dim in self.dimension:
             if not isinstance(dim, int):
                 raise ValueError("Shape arguments must be int")
+            if dim < 1:
+                raise ValueError("Empty or negative dimension")
 
     def __mul__(self, mul: int) -> "Shape":
         return type(self)(*(dim * mul for dim in self.dimension))
@@ -32,5 +34,19 @@ class Shape:
     def __getitem__(self, index: int) -> int:
         return self.dimension[index]
 
+    @property
     def prod(self) -> int:
+        if not self.dimension:
+            return 0
         return functools.reduce(operator.mul, self.dimension, 1)
+
+    def __str__(self) -> str:
+        dim_print = "x".join(str(dim) for dim in self.dimension)
+        return f"Shape: {dim_print}"
+
+    __repr__ = __str__
+
+    def __eq__(self, shape: object) -> bool:
+        if isinstance(shape, Shape):
+            return self.dimension == shape.dimension
+        return False

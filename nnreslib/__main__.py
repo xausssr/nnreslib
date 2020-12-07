@@ -1,7 +1,6 @@
 from argparse import ArgumentParser, Namespace
 
 from . import __version__
-from .func import my_func
 
 
 def parse_args() -> Namespace:
@@ -14,8 +13,7 @@ def parse_args() -> Namespace:
 
 def main() -> None:
     args = parse_args()
-    result = my_func(10)
-    print("Hello!", args.msg, result)
+    print("Hello!", args.msg)
 
 
 if __name__ == "__main__":
