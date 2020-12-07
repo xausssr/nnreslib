@@ -14,16 +14,17 @@ class ActivationFunction(Enum):
 
 
 class Shape:
-    def __init__(self, *args: int):
+    def __init__(self, *args: int, is_null: bool = False):
+        self.is_null = is_null
         self.dimension = tuple([*args])
         for dim in self.dimension:
             if not isinstance(dim, int):
                 raise ValueError("Shape arguments must be int")
-            if dim < 1:
+            if not self.is_null and dim < 1:
                 raise ValueError("Empty or negative dimension")
 
     def __mul__(self, mul: int) -> "Shape":
-        return type(self)(*(dim * mul for dim in self.dimension))
+        return type(self)(*(dim * mul for dim in self.dimension), is_null=self.is_null)
 
     __rmul__ = __mul__
 
