@@ -13,12 +13,13 @@ class Layer(ABC):
     def make_out_shape(self, inputs: Shape, pad: Shape) -> Shape:  # pylint:disable=unused-argument,no-self-use
         return Shape()
 
-    def check_output_shape(self) -> bool:  # pylint:disable=no-self-use
-        return True
-
 
 @attr.s(auto_attribs=True)
-class BaseConvolutionMaxPoolLayer(Layer):
+class Base2DLayer(Layer):
+    """
+    @xausssr please retype docstring
+    """
+
     kernel: Shape
     stride: Shape
 
@@ -32,30 +33,24 @@ class BaseConvolutionMaxPoolLayer(Layer):
 
 
 @attr.s(auto_attribs=True)
-class ConvolutionLayer(BaseConvolutionMaxPoolLayer):
+class ConvolutionLayer(Base2DLayer):
     filters: int
     pad: Shape
     activation: ActivationFunction
     out_shape: Shape = attr.ib(default=Shape())
 
-    def check_output_shape(self) -> bool:
-        return all(self.out_shape)
-
 
 @attr.s(auto_attribs=True)
-class MaxPoolLayer(BaseConvolutionMaxPoolLayer):
+class MaxPoolLayer(Base2DLayer):
     out_shape: Shape = attr.ib(default=Shape())
-
-    def check_output_shape(self) -> bool:  # TODO: implement
-        raise NotImplementedError()
 
 
 @attr.s(auto_attribs=True)
 class FlattenLayer(Layer):
     out_shape: Shape = attr.ib(default=Shape())
 
-    def check_output_shape(self) -> bool:  # TODO: implement
-        raise NotImplementedError()
+    def make_out_shape(self, inputs: Shape, pad: Shape) -> Shape:
+        return Shape(inputs.prod)
 
 
 @attr.s(auto_attribs=True)
