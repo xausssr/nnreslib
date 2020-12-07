@@ -17,7 +17,7 @@ class Layer(ABC):
 @attr.s(auto_attribs=True)
 class Base2DLayer(Layer):
     """
-    @xausssr please retype docstring
+    @xausssr please retype doc-string
     """
 
     kernel: Shape
