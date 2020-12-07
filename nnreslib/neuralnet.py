@@ -2,7 +2,7 @@ from typing import Dict, List, Type
 
 from .settings import Settings
 from .utils import log
-from .utils.layers import ConvolutionLayer, FlattenLayer, Layer, MaxPoolLayer
+from .utils.layers import ConvolutionLayer, FlattenLayer, FullyConnectedLayer, Layer, MaxPoolLayer
 from .utils.types import Shape
 
 logger = log.get(__name__)
@@ -23,6 +23,7 @@ class NeuralNet:
     def check_arch(self) -> bool:
         # Check correct of graph (for example: convolution out shape not negative)
         layers = self.settings.architecture
+        flatten_layer_count = 0
         last_filters_count = self.settings.inputs[-1]
         pre_layer_type: Type[Layer] = ConvolutionLayer
         pre_layer_inputs = self.settings.inputs
@@ -30,22 +31,25 @@ class NeuralNet:
             if not (
                 isinstance(layer, (ConvolutionLayer, MaxPoolLayer, FlattenLayer))
                 and pre_layer_type in (ConvolutionLayer, MaxPoolLayer)
+                or isinstance(layer, FullyConnectedLayer)
+                and pre_layer_type in (FullyConnectedLayer, FlattenLayer)
             ):
                 return False
-            pad = Shape()
-            if isinstance(layer, ConvolutionLayer):
-                pad = 2 * layer.pad
-            layer.out_shape = layer.make_out_shape(pre_layer_inputs, pad)
-            if not layer.check_output_shape():
-                logger.warning("You have zero-shape layer, check you model around %s", layer.name)
-                return False
-            if isinstance(layer, ConvolutionLayer):
-                last_filters_count = layer.filters
-            if isinstance(layer, FlattenLayer):
-                layer.out_shape = Shape(pre_layer_inputs.prod * last_filters_count)
-
+            if not isinstance(layer, FullyConnectedLayer):
+                pad = Shape()
+                if isinstance(layer, ConvolutionLayer):
+                    pad = 2 * layer.pad
+                layer.out_shape = layer.make_out_shape(pre_layer_inputs, pad)
+                if isinstance(layer, ConvolutionLayer):
+                    last_filters_count = layer.filters
+                if isinstance(layer, FlattenLayer):
+                    layer.out_shape = Shape(pre_layer_inputs.prod * last_filters_count)
+                    flatten_layer_count += 1
+                    if flatten_layer_count > 1:
+                        logger.error("@xausssr")
+                        return False
+                pre_layer_inputs = layer.out_shape
             pre_layer_type = type(layer)
-            pre_layer_inputs = layer.out_shape
 
         return True
 
