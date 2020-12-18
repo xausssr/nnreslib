@@ -1,14 +1,17 @@
-from typing import List
+from __future__ import annotations
 
-import attr
+from typing import TYPE_CHECKING
 
-from .utils.layers import Layer
-from .utils.types import Shape
+if TYPE_CHECKING:
+    from .model import Model
+    from .utils.types import Shape
 
 
-@attr.s(auto_attribs=True)
 class Settings:
-    outs: int
-    batch_size: int
-    inputs: Shape
-    architecture: List[Layer]
+    __slots__ = ("inputs", "outputs", "batch_size", "model")
+
+    def __init__(self, inputs: Shape, outputs: Shape, batch_size: int, model: Model):
+        self.inputs = inputs
+        self.outputs = outputs
+        self.batch_size = batch_size
+        self.model = model
