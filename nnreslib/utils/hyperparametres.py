@@ -2,8 +2,6 @@ import math
 from enum import Enum, auto
 from typing import Dict, List, Tuple, Union
 
-import numpy as np
-
 MIN_NUM_HIDDEN_LAYERS = 1
 MAX_NUM_HIDDEN_LAYERS = 2
 
@@ -30,9 +28,9 @@ def det_stop(len_dataset: int, len_output: int, gamma: float = 0.5) -> Tuple[flo
     stop_criterion_decibels - stopping criterion in decibels
     """
     error_norm_0_epoch = 0.25
-    error_norm_s_epoch = 1 / (2 * len_dataset * len_output) * np.max([gamma ** 2, (1 - gamma) ** 2])
+    error_norm_s_epoch = 1 / (2 * len_dataset * len_output) * max([gamma ** 2, (1 - gamma) ** 2])
     stop_criterion = error_norm_s_epoch / error_norm_0_epoch
-    stop_criterion_decibels = -3 - 10 * np.log10(len_dataset) - 10 * np.log10(len_output)
+    stop_criterion_decibels = -3 - 10 * math.log10(len_dataset) - 10 * math.log10(len_output)
     return stop_criterion, stop_criterion_decibels
 
 
@@ -51,13 +49,13 @@ def count_epochs(
     if stop_criterion_decibels > 0:
         raise ValueError("stop_criterion_decibels must be negative")
 
-    s_value = len_dataset * np.sqrt(-0.5 * stop_criterion_decibels)
+    s_value = len_dataset * math.sqrt(-0.5 * stop_criterion_decibels)
     weight_connections = (len_input + 1) * neurons[0]
     for i in range(len(neurons) - 1):
         weight_connections += (neurons[i] + 1) * neurons[i + 1]
     weight_connections += (neurons[-1] + 1) * len_output
     wieght_norm = weight_connections / (len_input * len_output)
-    num_layers = np.sum(neurons) + len_output + len(neurons) + 1
+    num_layers = sum(neurons) + len_output + len(neurons) + 1
     num_weight_coeff = weight_connections / num_layers
     s_value_all = s_value / (wieght_norm * num_weight_coeff) ** (1 / 4)
     s_value_all += s_value_all * 0.1
@@ -84,6 +82,7 @@ def num_neurons(
 
     assert MIN_NUM_HIDDEN_LAYERS <= num_hidden_layers <= MAX_NUM_HIDDEN_LAYERS
 
+    n_value = 0.0
     if border_assessment == BorderAssessment.LOW:
         n_value = weight_low / sum_parametres
     elif border_assessment == BorderAssessment.MID:
