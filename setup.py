@@ -10,7 +10,9 @@ def get_version() -> str:
         content = f.read()
 
     match = re.search(r'^__version__\s*\=\s*[\'"]([^\'""]+)[\'"]', content)
-    return match.group(1)
+    if match:
+        return match.group(1)
+    return ""
 
 
 def get_requirements() -> List[str]:
