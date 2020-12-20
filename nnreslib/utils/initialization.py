@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 
+from .types import Shape
+
 if TYPE_CHECKING:
-    from .types import Shape
     from ..layers import TrainableLayer
 
 
