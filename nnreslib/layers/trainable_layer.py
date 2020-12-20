@@ -3,18 +3,27 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 from .base_layer import Layer
+from ..utils.initialization import Initialization
+from ..utils.types import MergeFunction
 
 if TYPE_CHECKING:
     import numpy as np
 
-    from ..utils.initialization import Initialization
     from ..utils.types import ActivationFunction, Shape
 
 
 class TrainableLayer(Layer):
     # pylint:disable=unused-argument
-    def __init__(self, name: str, initializer: Initialization, activation: ActivationFunction, **kwargs: Any) -> None:
-        super().__init__(name, **kwargs)
+    def __init__(
+        self,
+        name: str,
+        activation: ActivationFunction,
+        initializer: Initialization = Initialization(),
+        merge_func: MergeFunction = MergeFunction.PASSTHROUGH,
+        is_out: bool = False,
+        **kwargs: Any
+    ) -> None:
+        super().__init__(name, merge_func=merge_func, is_out=is_out, **kwargs)
         self.initializer = initializer
         self.activation: Callable = cast(Callable, activation)
         self._weights: Optional[np.ndarray] = None

@@ -3,7 +3,7 @@ import math
 from typing import Any
 
 from .base_layer import Layer
-from ..utils.types import Shape
+from ..utils.types import MergeFunction, Shape
 
 
 class Base2DLayer(Layer):
@@ -12,8 +12,16 @@ class Base2DLayer(Layer):
     """
 
     # pylint:disable=unused-argument
-    def __init__(self, name: str, kernel: Shape, stride: Shape, **kwargs: Any) -> None:
-        super().__init__(name, **kwargs)
+    def __init__(
+        self,
+        name: str,
+        kernel: Shape,
+        stride: Shape,
+        merge_func: MergeFunction = MergeFunction.PASSTHROUGH,
+        is_out: bool = False,
+        **kwargs: Any
+    ) -> None:
+        super().__init__(name, merge_func=merge_func, is_out=is_out, **kwargs)
         if len(kernel) < 1:
             raise ValueError("'kernel' must be greater than 0")
         self.kernel = kernel

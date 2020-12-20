@@ -11,12 +11,27 @@ from .tf_helper import tf
 if TYPE_CHECKING:
     from typing import Generator, Optional, Sequence, Tuple, Union
 
+    import numpy as np
+
 
 class ActivationFunction(Enum):
     SIGMOID = tf.nn.sigmoid
     RELU = tf.nn.relu
     TANH = tf.nn.tanh
     SOFT_MAX = tf.nn.softmax
+
+
+def _passthroug(data: np.ndarray) -> np.ndarray:
+    return data
+
+
+def not_implemented() -> None:
+    raise NotImplementedError
+
+
+class MergeFunction(Enum):
+    PASSTHROUGH = _passthroug
+    ADD = not_implemented  # TODO: implement
 
 
 class Shape:
