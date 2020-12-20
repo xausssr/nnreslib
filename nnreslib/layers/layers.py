@@ -1,16 +1,13 @@
 # TODO: may be need split this layers by types
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from .base2d_layer import Base2DLayer
 from .base_layer import Layer
 from .trainable_layer import TrainableLayer
-from ..utils.types import Shape
-
-if TYPE_CHECKING:
-    from ..utils.initialization import Initialization
-    from ..utils.types import ActivationFunction
+from ..utils.initialization import Initialization
+from ..utils.types import ActivationFunction, MergeFunction, Shape
 
 
 class ConvolutionLayer(Base2DLayer, TrainableLayer):
@@ -19,14 +16,24 @@ class ConvolutionLayer(Base2DLayer, TrainableLayer):
     def __init__(
         self,
         name: str,
-        initializer: Initialization,
-        activation: ActivationFunction,
         kernel: Shape,
         stride: Shape,
         filters: int,
         pad: Shape = Shape(0, 0, is_null=True),
+        initializer: Initialization = Initialization(),
+        activation: ActivationFunction = ActivationFunction.RELU,
+        merge_func: MergeFunction = MergeFunction.PASSTHROUGH,
+        is_out: bool = False,
     ) -> None:
-        super().__init__(name=name, initializer=initializer, activation=activation, kernel=kernel, stride=stride)
+        super().__init__(
+            name=name,
+            merge_func=merge_func,
+            is_out=is_out,
+            initializer=initializer,
+            activation=activation,
+            kernel=kernel,
+            stride=stride,
+        )
         if filters < 1:
             raise ValueError("'filter' must be greater than 0")
         self.filters = filters
@@ -69,8 +76,22 @@ class FlattenLayer(Layer):
 class FullyConnectedLayer(TrainableLayer):
     __slots__ = ("neurons",)
 
-    def __init__(self, name: str, initializer: Initialization, activation: ActivationFunction, neurons: int) -> None:
-        super().__init__(name, initializer, activation)
+    def __init__(
+        self,
+        name: str,
+        neurons: int,
+        initializer: Initialization = Initialization(),
+        activation: ActivationFunction = ActivationFunction.SIGMOID,
+        merge_func: MergeFunction = MergeFunction.PASSTHROUGH,
+        is_out: bool = False,
+    ) -> None:
+        super().__init__(
+            name=name,
+            merge_func=merge_func,
+            is_out=is_out,
+            initializer=initializer,
+            activation=activation,
+        )
         if neurons < 1:
             raise ValueError("'neurons' must be greater than 0")
         self.neurons = neurons

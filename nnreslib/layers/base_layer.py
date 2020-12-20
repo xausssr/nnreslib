@@ -1,13 +1,21 @@
 from abc import ABC
 from typing import Any, Optional
 
-from ..utils.types import Shape
+from ..utils.types import MergeFunction, Shape
 
 
 class Layer(ABC):
     # pylint:disable=unused-argument
-    def __init__(self, name: str, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        name: str,
+        merge_func: MergeFunction = MergeFunction.PASSTHROUGH,
+        is_out: bool = False,
+        **kwargs: Any,
+    ) -> None:
         self.name = name
+        self.merge_func = merge_func
+        self.is_out = is_out
         self._input_shape: Optional[Shape] = None
         self._output_shape: Optional[Shape] = None
 
@@ -37,7 +45,7 @@ class Layer(ABC):
 
     # pylint:disable=unused-argument
     def set_output_shape(self, **kwargs: Any) -> None:
-        self._output_shape = Shape()
+        self._output_shape = None
 
     # pylint:disable=no-self-use
     def get_last_filters_count(self, last_filters_count: int = 0) -> int:
