@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import collections.abc as ca
+import math as m
 from collections import defaultdict
 from enum import Enum, auto
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Tuple
 
 import numpy as np
 
@@ -137,3 +138,164 @@ class Metrics:
             return False
 
         return True
+
+    def _conf_matrix(self, data: Tuple[np.ndarray, np.ndarray], treshold: float = 0.5) -> dict:
+        classification_metrics = {"TP": 0.0, "FP": 0.0, "FN": 0.0, "TN": 0.0}
+        for label in range(len(data[0])):
+            if data[0][label] == int(data[1][label] > treshold):
+                if data[0][label] == 0:
+                    classification_metrics["TN"] += 1.0
+                else:
+                    classification_metrics["TP"] += 1.0
+            else:
+                if data[0][label] == 0:
+                    classification_metrics["FN"] += 1.0
+                else:
+                    classification_metrics["FP"] += 1.0
+        return classification_metrics
+
+    def confusion_data(
+        self, data: Tuple[np.ndarray, np.ndarray], score_beta: Tuple[float] = (1.0,), treshold: float = 0.5
+    ) -> dict:
+
+        classification_metrics = self._conf_matrix(data, treshold)
+
+        condition_negative = classification_metrics["FP"] + classification_metrics["TN"]
+        condition_positive = classification_metrics["TP"] + classification_metrics["FN"]
+        predicted_condition_positive = classification_metrics["TP"] + classification_metrics["FP"]
+        predicted_condition_negative = classification_metrics["TN"] + classification_metrics["FN"]
+        total_population = len(data[0])
+
+        classification_metrics["Recall"] = classification_metrics["TP"] / condition_positive
+        classification_metrics["FPR"] = classification_metrics["FP"] / condition_negative
+        classification_metrics["FNR"] = classification_metrics["FN"] / condition_positive
+        classification_metrics["TNR"] = classification_metrics["TN"] / condition_negative
+
+        classification_metrics["Prevalence"] = condition_positive / total_population
+        classification_metrics["Accuracy"] = (
+            classification_metrics["TP"] + classification_metrics["TN"]
+        ) / total_population
+        classification_metrics["Precision"] = classification_metrics["TP"] / predicted_condition_positive
+        classification_metrics["FDR"] = classification_metrics["FP"] / predicted_condition_positive
+        classification_metrics["FOR"] = classification_metrics["FN"] / predicted_condition_negative
+        classification_metrics["NPV"] = classification_metrics["TN"] / predicted_condition_negative
+
+        try:
+            classification_metrics["LR+"] = classification_metrics["Recall"] / classification_metrics["FPR"]
+        except ZeroDivisionError:
+            classification_metrics["LR+"] = 1
+
+        try:
+            classification_metrics["LR-"] = classification_metrics["FNR"] / classification_metrics["TNR"]
+        except ZeroDivisionError:
+            classification_metrics["LR-"] = 1
+        try:
+            classification_metrics["DOR"] = classification_metrics["LR+"] / classification_metrics["LR-"]
+        except ZeroDivisionError:
+            classification_metrics["DOR"] = 1
+        try:
+            classification_metrics["PT"] = (
+                m.sqrt(classification_metrics["Recall"] * (1 - classification_metrics["TNR"]))
+                + classification_metrics["TNR"]
+                - 1
+            ) / (classification_metrics["Recall"] + classification_metrics["TNR"] - 1)
+        except ZeroDivisionError:
+            classification_metrics["PT"] = 1
+        classification_metrics["TS"] = classification_metrics["TP"] / (
+            classification_metrics["TP"] + classification_metrics["FN"] + classification_metrics["FP"]
+        )
+
+        classification_metrics["BA"] = (classification_metrics["Recall"] + classification_metrics["TNR"]) / 2
+
+        classification_metrics["MCC"] = (
+            classification_metrics["TP"] * classification_metrics["TN"]
+            - classification_metrics["FP"] * classification_metrics["FN"]
+        ) / (
+            m.sqrt(
+                (classification_metrics["TP"] + classification_metrics["FP"])
+                * (classification_metrics["TP"] + classification_metrics["FN"])
+                * (classification_metrics["TN"] + classification_metrics["FP"])
+                * (classification_metrics["TN"] + classification_metrics["FN"])
+            )
+        )
+        classification_metrics["FM"] = m.sqrt(classification_metrics["Precision"] * classification_metrics["Recall"])
+
+        classification_metrics["BM"] = classification_metrics["Recall"] + classification_metrics["TNR"] - 1
+        classification_metrics["MK"] = classification_metrics["Precision"] + classification_metrics["NPV"] - 1
+
+        for beta in score_beta:
+            classification_metrics["F" + str(beta)] = (1.0 * beta ** 2 * classification_metrics["TP"]) / (
+                (1 + beta ** 2) * classification_metrics["TP"]
+                + beta ** 2 * classification_metrics["FN"]
+                + classification_metrics["FP"]
+            )
+
+        ones = np.sum(data[0])
+        sorted_labels = np.hstack([data[1], data[0]])
+        sorted_labels = sorted_labels[np.argsort(sorted_labels[:, 0])][::-1]
+
+        roc = [0]
+        prc = np.zeros(shape=(2, 100))
+        temp_roc_value = 0
+        auc = 0
+
+        for pos in range(len(sorted_labels)):
+            if sorted_labels[pos][1] == 1:
+                temp_roc_value += 1.0 / ones
+            else:
+                roc.append(temp_roc_value)
+                auc += temp_roc_value
+
+        idx = 0
+        for temp_treshold in np.linspace(0, 1, num=prc.shape[1]):
+            temp_matrix = self._conf_matrix(data, temp_treshold)
+
+            try:
+                prc[0, idx] = temp_matrix["TP"] / (temp_matrix["TP"] + temp_matrix["FP"])
+            except ZeroDivisionError:
+                prc[0, idx] = 1.0
+            try:
+                prc[1, idx] = temp_matrix["TP"] / (temp_matrix["TP"] + temp_matrix["FN"])
+            except ZeroDivisionError:
+                prc[1, idx] = 1.0
+
+            idx += 1
+
+        classification_metrics["ROC_AUC_cycle"] = auc / (len(sorted_labels) - ones)
+        classification_metrics["ROC_AUC_analytic"] = (
+            1 + classification_metrics["Recall"] - classification_metrics["FPR"]
+        ) / 2
+        classification_metrics["ROC"] = roc
+        classification_metrics["PRC"] = prc
+        classification_metrics["PR_AUC"] = np.sum(prc[0, :]) / prc.shape[1]
+
+        return classification_metrics
+
+    def multimodal_confusion_data(
+        self, data: Tuple[np.ndarray, np.ndarray], score_beta: Tuple[float] = (1.0,), treshold: float = 0.5
+    ) -> dict:
+        classification_metrics: Dict = {}
+        for class_idx in range(len(data[0][0])):
+            classification_metrics[f"Class {class_idx}"] = {}
+            temp_result = self.confusion_data(
+                (data[0][:, class_idx].reshape((-1, 1)), data[1][:, class_idx].reshape((-1, 1))),
+                score_beta=score_beta,
+                treshold=treshold,
+            )
+            for key in temp_result.keys():
+                classification_metrics[f"Class {class_idx}"][key] = temp_result[key]
+
+        classification_metrics["average"] = {}
+        temp_result = self.confusion_data(
+            (data[0].ravel().reshape((-1, 1)), data[1].ravel().reshape((-1, 1))),
+            score_beta=score_beta,
+            treshold=treshold,
+        )
+        for key in temp_result.keys():
+            classification_metrics["average"][key] = temp_result[key]
+
+        return classification_metrics
+
+
+# classification_metrics(data=(y, y_hat), ...) -> y.shape[1] == 1: confusion_data; multimodal_confusion_data
+# len(y.shape) != 2: error; y.shape != y_hat.shape: error; treshold in (0,1)
