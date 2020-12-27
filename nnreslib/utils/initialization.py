@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import collections.abc as ca
+import functools
 import math
 from enum import Enum
 from typing import TYPE_CHECKING, Callable
@@ -46,9 +47,9 @@ def _haykin(
 
 
 class StandartInitializer(Enum):
-    ZEROS = _zeros
-    HE_NORMAL = _he_normal
-    HAYKIN = _haykin
+    ZEROS = functools.partial(_zeros)
+    HE_NORMAL = functools.partial(_he_normal)
+    HAYKIN = functools.partial(_haykin)
 
 
 InitializerType = Callable[[Shape, Shape, Shape, float, float], np.ndarray]
@@ -56,7 +57,9 @@ InitializerType = Callable[[Shape, Shape, Shape, float, float], np.ndarray]
 
 class Initialization:
     def __init__(
-        self, weights_initializer: InitializerType = _zeros, biases_initializer: InitializerType = _he_normal
+        self,
+        weights_initializer: InitializerType = StandartInitializer.HE_NORMAL.value,
+        biases_initializer: InitializerType = StandartInitializer.ZEROS.value,
     ) -> None:
         if not all(
             map(lambda x: isinstance(x, ca.Callable), (weights_initializer, biases_initializer))  # type: ignore

@@ -1,7 +1,8 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Any, Optional
 
-from ..utils.types import MergeFunction, Shape
+from ..utils.merge import MergeInputs
+from ..utils.types import Shape
 
 
 class Layer(ABC):
@@ -9,12 +10,12 @@ class Layer(ABC):
     def __init__(
         self,
         name: str,
-        merge_func: MergeFunction = MergeFunction.PASSTHROUGH,
+        merge: Optional[MergeInputs] = None,
         is_out: bool = False,
         **kwargs: Any,
     ) -> None:
         self.name = name
-        self.merge_func = merge_func
+        self.merge = merge
         self.is_out = is_out
         self._input_shape: Optional[Shape] = None
         self._output_shape: Optional[Shape] = None
@@ -22,34 +23,33 @@ class Layer(ABC):
     @property
     def input_shape(self) -> Shape:
         if self._input_shape is None:
-            raise ValueError("'input_shape' must be initialized")
+            raise ValueError("Call 'set_shapes' method at first")
         return self._input_shape
 
-    @input_shape.setter
-    def input_shape(self, value: Shape) -> None:
-        if self._check_input_shape(value):
-            self._input_shape = value
-        else:
-            raise ValueError("Incorrect input shape")
+    @property
+    def output_shape(self) -> Shape:
+        if not self._output_shape:
+            raise ValueError("Call 'set_shapes' method at first")
+        return self._output_shape
 
     # pylint:disable=unused-argument
     @staticmethod
     def _check_input_shape(value: Shape) -> bool:
         return True
 
-    @property
-    def output_shape(self) -> Shape:
-        if not self._output_shape:
-            raise ValueError("Call 'fill_output_shape' method first")
-        return self._output_shape
-
-    # pylint:disable=unused-argument
-    def set_output_shape(self, **kwargs: Any) -> None:
+    @abstractmethod
+    def _set_output_shape(self) -> None:
         self._output_shape = None
 
-    # pylint:disable=no-self-use
-    def get_last_filters_count(self, last_filters_count: int = 0) -> int:
-        return last_filters_count
+    def set_shapes(self, main_input: Shape, *other_input: Shape) -> None:
+        if self.merge:
+            input_shape = self.merge.calc_result_shape(main_input, *other_input)
+        else:
+            input_shape = main_input
+        if not self._check_input_shape(input_shape):
+            raise ValueError(f"Incorrect input shape for layer: {self.name}")
+        self._input_shape = input_shape
+        self._set_output_shape()
 
     @property
     def neurons_count(self) -> int:

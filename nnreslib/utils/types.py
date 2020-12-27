@@ -3,7 +3,7 @@ from __future__ import annotations
 import collections.abc as ca
 import functools
 import operator
-from enum import Enum
+from enum import Enum, unique
 from typing import TYPE_CHECKING, overload
 
 from .tf_helper import tf
@@ -11,27 +11,14 @@ from .tf_helper import tf
 if TYPE_CHECKING:
     from typing import Generator, Optional, Sequence, Tuple, Union
 
-    import numpy as np
 
-
+# TODO: support backend
+@unique
 class ActivationFunction(Enum):
-    SIGMOID = tf.nn.sigmoid
-    RELU = tf.nn.relu
-    TANH = tf.nn.tanh
-    SOFT_MAX = tf.nn.softmax
-
-
-def _passthroug(data: np.ndarray) -> np.ndarray:
-    return data
-
-
-def not_implemented() -> None:
-    raise NotImplementedError
-
-
-class MergeFunction(Enum):
-    PASSTHROUGH = _passthroug
-    ADD = not_implemented  # TODO: implement
+    SIGMOID = functools.partial(tf.nn.sigmoid)
+    RELU = functools.partial(tf.nn.relu)
+    TANH = functools.partial(tf.nn.tanh)
+    SOFT_MAX = functools.partial(tf.nn.softmax)
 
 
 class Shape:
@@ -40,7 +27,7 @@ class Shape:
         ...
 
     @overload
-    def __init__(self, dim: Optional[Sequence[int]]) -> None:
+    def __init__(self, dim: Optional[Sequence[int]], *, is_null: bool = False) -> None:
         ...
 
     @overload
@@ -70,8 +57,18 @@ class Shape:
         for dim in self.dimension:
             yield dim
 
+    @overload
     def __getitem__(self, index: int) -> int:
-        return self.dimension[index]
+        ...
+
+    @overload
+    def __getitem__(self, index: slice) -> Sequence[int]:
+        ...
+
+    def __getitem__(self, index: Union[int, slice]) -> Union[int, Sequence[int]]:
+        if isinstance(index, (int, slice)):
+            return self.dimension[index]
+        raise TypeError(f"index must be integer or slices, not {type(index).__name__}")
 
     def __mul__(self, value: object) -> Shape:
         if isinstance(value, int):
