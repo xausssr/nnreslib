@@ -96,6 +96,9 @@ def test_shape_index():
     with pytest.raises(IndexError):
         Shape(1, 2, 3)[10]  # pylint:disable=expression-not-assigned
     assert Shape(1, 2, 3)[1] == 2
+    assert Shape(1, 2, 3)[:-1] == (1, 2)
+    with pytest.raises(TypeError, match=r"must be.*not str"):
+        Shape(1, 2, 3)["a"]  # pylint:disable=expression-not-assigned
 
 
 def test_shape_equal():

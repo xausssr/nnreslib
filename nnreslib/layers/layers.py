@@ -1,13 +1,14 @@
 # TODO: may be need split this layers by types
 from __future__ import annotations
 
-from typing import Any
+from typing import Optional
 
 from .base2d_layer import Base2DLayer
 from .base_layer import Layer
 from .trainable_layer import TrainableLayer
 from ..utils.initialization import Initialization
-from ..utils.types import ActivationFunction, MergeFunction, Shape
+from ..utils.merge import MergeInputs
+from ..utils.types import ActivationFunction, Shape
 
 
 class ConvolutionLayer(Base2DLayer, TrainableLayer):
@@ -19,31 +20,33 @@ class ConvolutionLayer(Base2DLayer, TrainableLayer):
         kernel: Shape,
         stride: Shape,
         filters: int,
-        pad: Shape = Shape(0, 0, is_null=True),
-        initializer: Initialization = Initialization(),
+        pad: Optional[Shape] = None,
+        merge: Optional[MergeInputs] = None,
         activation: ActivationFunction = ActivationFunction.RELU,
-        merge_func: MergeFunction = MergeFunction.PASSTHROUGH,
+        initializer: Initialization = Initialization(),
         is_out: bool = False,
     ) -> None:
+        """
+        #TODO: describe default layers
+        """
         super().__init__(
             name=name,
-            merge_func=merge_func,
+            merge=merge,
             is_out=is_out,
-            initializer=initializer,
             activation=activation,
+            initializer=initializer,
             kernel=kernel,
             stride=stride,
         )
         if filters < 1:
-            raise ValueError("'filter' must be greater than 0")
+            raise ValueError("'filters' must be greater than 0")
         self.filters = filters
+        if pad is None:
+            pad = Shape(*((0,) * len(self.kernel)), is_null=True)
         self.pad = pad
 
-    def set_output_shape(self, **kwargs: Any) -> None:
-        self._output_shape = self._set_output_shape(2 * self.pad)
-
-    def get_last_filters_count(self, last_filters_count: int = 0) -> int:
-        return self.filters
+    def _set_output_shape(self) -> None:
+        self._output_shape = self._calc_output_shape(2 * self.pad, self.filters)
 
     @property
     def neurons_count(self) -> int:
@@ -55,22 +58,21 @@ class ConvolutionLayer(Base2DLayer, TrainableLayer):
 
     @property
     def biases_shape(self) -> Shape:
-        return Shape(1, 1, 1, self.filters)
+        return Shape(*((1,) * len(self.kernel)), 1, self.filters)  # TODO: Make third dim equal to self.input_shape[-1]
 
 
 class MaxPoolLayer(Base2DLayer):
     __slots__ = ()
 
-    def set_output_shape(self, **kwargs: Shape) -> None:
-        self._output_shape = self._set_output_shape(Shape(0, 0, is_null=True))
+    def _set_output_shape(self) -> None:
+        self._output_shape = self._calc_output_shape()
 
 
 class FlattenLayer(Layer):
     __slots__ = ()
-    OUTPUT_SHAPE_PARAM = "last_filters_count"
 
-    def set_output_shape(self, **kwargs: Any) -> None:
-        self._output_shape = Shape(self.input_shape.prod * kwargs[FlattenLayer.OUTPUT_SHAPE_PARAM])
+    def _set_output_shape(self) -> None:
+        self._output_shape = Shape(self.input_shape.prod)
 
 
 class FullyConnectedLayer(TrainableLayer):
@@ -80,17 +82,17 @@ class FullyConnectedLayer(TrainableLayer):
         self,
         name: str,
         neurons: int,
-        initializer: Initialization = Initialization(),
+        merge: Optional[MergeInputs] = None,
         activation: ActivationFunction = ActivationFunction.SIGMOID,
-        merge_func: MergeFunction = MergeFunction.PASSTHROUGH,
+        initializer: Initialization = Initialization(),
         is_out: bool = False,
     ) -> None:
         super().__init__(
             name=name,
-            merge_func=merge_func,
+            merge=merge,
             is_out=is_out,
-            initializer=initializer,
             activation=activation,
+            initializer=initializer,
         )
         if neurons < 1:
             raise ValueError("'neurons' must be greater than 0")
@@ -99,6 +101,9 @@ class FullyConnectedLayer(TrainableLayer):
     @staticmethod
     def _check_input_shape(value: Shape) -> bool:
         return len(value) == 1
+
+    def _set_output_shape(self) -> None:
+        self._output_shape = Shape(self.neurons)
 
     @property
     def neurons_count(self) -> int:
