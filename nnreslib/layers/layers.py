@@ -1,9 +1,8 @@
-# TODO: may be need split this layers by types
 from __future__ import annotations
 
 from typing import Optional
 
-from .base2d_layer import Base2DLayer
+from .base_conv_layer import BaseConvLayer
 from .base_layer import Layer
 from .trainable_layer import TrainableLayer
 from ..utils.initialization import Initialization
@@ -11,7 +10,7 @@ from ..utils.merge import MergeInputs
 from ..utils.types import ActivationFunction, Shape
 
 
-class ConvolutionLayer(Base2DLayer, TrainableLayer):
+class ConvolutionLayer(BaseConvLayer, TrainableLayer):
     __slots__ = ("filters", "pad")
 
     def __init__(
@@ -27,7 +26,8 @@ class ConvolutionLayer(Base2DLayer, TrainableLayer):
         is_out: bool = False,
     ) -> None:
         """
-        #TODO: describe default layers
+        #TODO: describe default values for layer
+        @xausssr
         """
         super().__init__(
             name=name,
@@ -58,10 +58,12 @@ class ConvolutionLayer(Base2DLayer, TrainableLayer):
 
     @property
     def biases_shape(self) -> Shape:
-        return Shape(*((1,) * len(self.kernel)), 1, self.filters)  # TODO: Make third dim equal to self.input_shape[-1]
+        return Shape(
+            *((1,) * len(self.kernel)), 1, self.filters
+        )  # TODO: # Make third dim equal to self.input_shape[-1]
 
 
-class MaxPoolLayer(Base2DLayer):
+class MaxPoolLayer(BaseConvLayer):
     __slots__ = ()
 
     def _set_output_shape(self) -> None:

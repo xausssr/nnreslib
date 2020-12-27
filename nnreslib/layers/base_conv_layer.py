@@ -1,4 +1,3 @@
-# TODO: rename module name
 import math
 from typing import Any, Optional
 
@@ -7,8 +6,7 @@ from ..utils.merge import MergeInputs
 from ..utils.types import Shape
 
 
-# TODO: rename
-class Base2DLayer(Layer):
+class BaseConvLayer(Layer):
     """
     Basic class for 2D layers like convolution, maxpooling etc.
     """

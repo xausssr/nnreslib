@@ -1,4 +1,4 @@
-from .base2d_layer import Base2DLayer
+from .base_conv_layer import BaseConvLayer
 from .base_layer import Layer
 from .input_layer import InputLayer
 from .layers import ConvolutionLayer, FlattenLayer, FullyConnectedLayer, MaxPoolLayer
@@ -6,7 +6,7 @@ from .trainable_layer import TrainableLayer
 
 __all__ = [
     "Layer",
-    "Base2DLayer",
+    "BaseConvLayer",
     "TrainableLayer",
     "InputLayer",
     "ConvolutionLayer",
