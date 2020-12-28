@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import collections.abc as ca
+import logging
 import math as m
 from collections import defaultdict
 from enum import Enum, auto
@@ -8,9 +9,7 @@ from typing import Callable, Dict, List, Tuple
 
 import numpy as np
 
-from . import log
-
-logger = log.get(__name__)
+logger = logging.getLogger(__name__)
 
 
 class MetricResult:
