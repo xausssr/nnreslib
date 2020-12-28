@@ -9,7 +9,7 @@ from typing import Callable, Dict, List, Tuple
 
 import numpy as np
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 class MetricResult:
@@ -60,7 +60,7 @@ def _mae(vec_true: np.ndarray, vec_pred: np.ndarray) -> np.ndarray:
         c_vec_true = np.argmax(vec_true)
         c_vec_pred = np.argmax(vec_pred)
         return np.array([np.sum(np.abs(c_vec_true - c_vec_pred))])
-    logger.warning("Metric MAE is categorical! You need use 2D one-hot encoded arrays for output result")
+    _logger.warning("Metric MAE is categorical! You need use 2D one-hot encoded arrays for output result")
     return np.zeros(1)
 
 
@@ -68,7 +68,7 @@ def _mae(vec_true: np.ndarray, vec_pred: np.ndarray) -> np.ndarray:
 def _cce(vec_true: np.ndarray, vec_pred: np.ndarray) -> np.ndarray:
     if len(vec_true.shape) == 2 and len(vec_pred.shape) == 2:
         return np.array([np.sum(-(vec_true * np.log(vec_pred)))])
-    logger.warning(
+    _logger.warning(
         "Metric Categorical cross-entropy is categorical! You need use 2D one-hot encoded arrays for output result"
     )
     return np.zeros(1)
@@ -111,7 +111,7 @@ class Metrics:
                 raise ValueError(f"'{name}' metric is not callable")
             metric = metric_adapter(value)
             if not self._check_metric(metric) and not skip_check:
-                logger.warning(
+                _logger.warning(
                     "Metric [%s] does not meet the requirements of the axioms "
                     '[use skip_check=True" in Metrics] for skip this check',
                     name,
