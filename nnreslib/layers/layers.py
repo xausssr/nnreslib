@@ -7,7 +7,7 @@ from .base_layer import Layer
 from .trainable_layer import TrainableLayer
 from ..utils.initialization import Initialization
 from ..utils.merge import MergeInputs
-from ..utils.types import ActivationFunction, Shape
+from ..utils.types import ActivationFunctions, Shape
 
 
 class ConvolutionLayer(BaseConvLayer, TrainableLayer):
@@ -21,7 +21,7 @@ class ConvolutionLayer(BaseConvLayer, TrainableLayer):
         filters: int,
         pad: Optional[Shape] = None,
         merge: Optional[MergeInputs] = None,
-        activation: ActivationFunction = ActivationFunction.RELU,
+        activation: ActivationFunctions = ActivationFunctions.RELU,
         initializer: Initialization = Initialization(),
         is_out: bool = False,
     ) -> None:
@@ -85,7 +85,7 @@ class FullyConnectedLayer(TrainableLayer):
         name: str,
         neurons: int,
         merge: Optional[MergeInputs] = None,
-        activation: ActivationFunction = ActivationFunction.SIGMOID,
+        activation: ActivationFunctions = ActivationFunctions.SIGMOID,
         initializer: Initialization = Initialization(),
         is_out: bool = False,
     ) -> None:
