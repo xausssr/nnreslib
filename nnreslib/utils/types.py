@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 # TODO: support backend
 @unique
-class ActivationFunction(Enum):
+class ActivationFunctions(Enum):
     SIGMOID = functools.partial(tf.nn.sigmoid)
     RELU = functools.partial(tf.nn.relu)
     TANH = functools.partial(tf.nn.tanh)

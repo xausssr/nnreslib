@@ -10,7 +10,7 @@ from ..utils.merge import MergeInputs
 if TYPE_CHECKING:
     import numpy as np
 
-    from ..utils.types import ActivationFunction, Shape
+    from ..utils.types import ActivationFunctions, Shape
 
 
 class TrainableLayer(Layer):
@@ -18,7 +18,7 @@ class TrainableLayer(Layer):
     def __init__(
         self,
         name: str,
-        activation: ActivationFunction,
+        activation: ActivationFunctions,
         merge: Optional[MergeInputs] = None,
         initializer: Initialization = Initialization(),
         is_out: bool = False,
