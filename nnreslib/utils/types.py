@@ -6,19 +6,18 @@ import operator
 from enum import Enum, unique
 from typing import TYPE_CHECKING, overload
 
-from .tf_helper import tf
+from ..backend.activation_functions import relu, sigmoid, softmax, tanh
 
 if TYPE_CHECKING:
     from typing import Generator, Optional, Sequence, Tuple, Union
 
 
-# TODO: support backend
 @unique
 class ActivationFunctions(Enum):
-    SIGMOID = functools.partial(tf.nn.sigmoid)
-    RELU = functools.partial(tf.nn.relu)
-    TANH = functools.partial(tf.nn.tanh)
-    SOFT_MAX = functools.partial(tf.nn.softmax)
+    SIGMOID = functools.partial(sigmoid)
+    RELU = functools.partial(relu)
+    TANH = functools.partial(tanh)
+    SOFT_MAX = functools.partial(softmax)
 
 
 class Shape:
