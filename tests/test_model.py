@@ -83,6 +83,8 @@ def test_arch_inception_valid():
 
 
 # TODO: add test for valid arch with padding
+# TODO: add test for network with input layer in the middle of the definition
+# BUG: there may be an error here ^^^^^
 
 
 def test_model_with_bad_arch_definition():
