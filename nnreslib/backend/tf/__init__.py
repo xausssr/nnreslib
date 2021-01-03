@@ -13,3 +13,5 @@ import tensorflow as tf  # noqa isort:skip pylint:disable=wrong-import-position
 tf.compat.v1.disable_eager_execution()
 
 _logger.debug("%s loaded", __name__)
+
+__version__ = tf.__version__

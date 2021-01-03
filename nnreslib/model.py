@@ -26,21 +26,19 @@ class LayerInfo:
 
 class Model:
     __slots__ = (
-        "input_mean",
-        "input_std",
         "neurons_count",
-        "built",
         "_layers",
         "_input_layers",
+        "_output_layers",
         "_initialized_layers",
         "_architecture",
     )
 
     def __init__(self, architecture: ArchitectureType):
         self.neurons_count = 0
-        self.built = False
         self._layers: Dict[str, LayerInfo] = {}
         self._input_layers: List[str] = []
+        self._output_layers: List[str] = []
         self._initialized_layers: List[str] = []
         self._architecture: Dict[str, Sequence[str]] = {}
         self._parse_layers(architecture)
@@ -106,19 +104,8 @@ class Model:
                     self._input_layers.append(layer.name)
                 elif isinstance(layer, TrainableLayer):
                     self._initialized_layers.append(layer.name)
-
-    def _build_model(self, architecture: ArchitectureType) -> None:
-        pre_level = Model._check_first_layer(architecture[0])
-
-        for level in architecture[1:]:
-            new_pre_level: List[str] = []
-            for dependencies, layer in Model._parse_layer_definition(level):
-                new_pre_level.append(layer.name)
-                if "" in dependencies:
-                    dependencies = pre_level  # TODO: check dependencies layers compatibility with merge function
-                self._process_layer(dependencies, layer)
-                self._architecture[layer.name] = dependencies
-            pre_level = new_pre_level
+                if layer.is_out:
+                    self._output_layers.append(layer.name)
 
     def _check_input_layers_type(self, input_layers: Iterable[str], layer: Layer) -> None:
         pre_layers_info = [self._layers[x] for x in input_layers]
@@ -160,8 +147,41 @@ class Model:
 
         self.neurons_count += layer.neurons_count
 
+    def _build_model(self, architecture: ArchitectureType) -> None:
+        pre_level = Model._check_first_layer(architecture[0])
+
+        for level in architecture[1:]:
+            new_pre_level: List[str] = []
+            for dependencies, layer in Model._parse_layer_definition(level):
+                new_pre_level.append(layer.name)
+                if "" in dependencies:
+                    dependencies = pre_level  # TODO: check dependencies layers compatibility with merge function
+                self._process_layer(dependencies, layer)
+                self._architecture[layer.name] = dependencies
+            pre_level = new_pre_level
+
     def initialize(self, data_mean: float = 0.0, data_std: float = 0.0) -> None:
         for layer_name in self._initialized_layers:
             layer: TrainableLayer = cast(TrainableLayer, self._layers[layer_name].layer)
             layer.set_weights(data_mean, data_std)
             layer.set_biases(data_mean, data_std)
+
+    @property
+    def layers(self) -> Generator[Layer, None, None]:
+        for layer_info in self._layers.values():
+            yield layer_info.layer
+
+    @property
+    def input_layers(self) -> Generator[InputLayer, None, None]:
+        for input_layer in self._input_layers:
+            yield cast(InputLayer, self._layers[input_layer].layer)
+
+    @property
+    def output_layers(self) -> Generator[Layer, None, None]:
+        for output_layer in self._output_layers:
+            yield self._layers[output_layer].layer
+
+    @property
+    def architecture(self) -> Generator[Tuple[Layer, Sequence[str]], None, None]:
+        for layer, inputs_layers in self._architecture.items():
+            yield self._layers[layer].layer, inputs_layers
