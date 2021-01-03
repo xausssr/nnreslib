@@ -1,8 +1,17 @@
 from __future__ import annotations
 
+import logging
 from argparse import ArgumentParser, Namespace
 
 from . import __version__
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="[%(asctime)s.%(msecs)03d] %(name)-20s %(levelname)8s %(message)s",
+    datefmt="%Y.%m.%d %H:%M:%S",
+)
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args() -> Namespace:
@@ -15,7 +24,7 @@ def parse_args() -> Namespace:
 
 def main() -> None:
     args = parse_args()
-    print("Hello!", args.msg)
+    logger.info("Hello! %s", args.msg)
 
 
 if __name__ == "__main__":
