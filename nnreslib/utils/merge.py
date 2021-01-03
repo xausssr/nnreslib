@@ -2,29 +2,31 @@ from __future__ import annotations
 
 import functools
 from enum import Enum, unique
-from typing import TYPE_CHECKING, Callable, Optional
+from typing import Callable, Optional, Union
 
 from .types import Shape
-
-if TYPE_CHECKING:
-    import numpy as np
+from ..backend import graph as G
 
 
-# TODO: implement and fix annotation
-def _data_merge_not_implemented(main_input: np.ndarray, *other_input: np.ndarray) -> np.ndarray:
+def _data_merge_not_implemented(
+    main_input: Union[Callable[..., G.Tensor]], *other_input: Union[Callable[..., G.Tensor]]
+) -> Union[Callable[..., G.Tensor], G.Tensor]:
     raise NotImplementedError
 
 
 @unique
 class MergeFunctions(Enum):
     # TODO: fix annotation
-    value: Callable[..., np.ndarray]
+    value: Union[Callable[..., G.Tensor], G.Tensor]
     RESHAPE_TO_MAIN = functools.partial(_data_merge_not_implemented)
 
 
 # pylint:disable=unused-argument
 def _reshape_to_main(main_input: Shape, *other_input: Shape) -> Shape:
     return main_input
+
+
+# pylint:enable=unused-argument
 
 
 @unique
@@ -46,5 +48,9 @@ class MergeInputs:
         return self.result_shape
 
     # TODO: fix annotation
-    def merge_data(self, main_input: np.ndarray, *other_input: np.ndarray) -> np.ndarray:
+    def __call__(
+        self,
+        main_input: Union[Callable[..., G.Tensor], G.Tensor],
+        *other_input: Union[Callable[..., G.Tensor], G.Tensor]
+    ) -> Union[Callable[..., G.Tensor], G.Tensor]:
         return self._merge_func.value(main_input, *other_input)
