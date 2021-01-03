@@ -25,10 +25,7 @@ class ConvolutionLayer(BaseConvLayer, TrainableLayer):
         initializer: Initialization = Initialization(),
         is_out: bool = False,
     ) -> None:
-        """
-        #TODO: describe default values for layer
-        @xausssr
-        """
+        # TODO (@xausssr): describe default values for layer as docstring
         super().__init__(
             name=name,
             merge=merge,
