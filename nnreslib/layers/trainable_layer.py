@@ -22,7 +22,7 @@ class TrainableLayer(Layer):
         merge: Optional[MergeInputs] = None,
         initializer: Initialization = Initialization(),
         is_out: bool = False,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> None:
         super().__init__(name, merge=merge, is_out=is_out, **kwargs)
         self.initializer = initializer
@@ -38,7 +38,7 @@ class TrainableLayer(Layer):
     @property
     def weights(self) -> np.ndarray:
         if self._weights is None:
-            raise ValueError()
+            raise ValueError(f"Weights of layer {self.name} is not initialized")
         return self._weights
 
     def set_weights(self, data_mean: float = 0.0, data_std: float = 0.0) -> None:
@@ -52,7 +52,7 @@ class TrainableLayer(Layer):
     @property
     def biases(self) -> np.ndarray:
         if self._biases is None:
-            raise ValueError()
+            raise ValueError(f"Biases of layer {self.name} is not initialized")
         return self._biases
 
     def set_biases(self, data_mean: float = 0.0, data_std: float = 0.0) -> None:
