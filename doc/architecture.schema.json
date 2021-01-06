@@ -1,0 +1,178 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://github.com/xausssr/nnreslib/blob/master/doc/architecture.schema.json",
+    "title": "Architecture",
+    "description": "Neural Net architecture definition",
+    "definitions": {
+        "LayerType": {
+            "enum": [
+                "Input",
+                "Convolution",
+                "MaxPool",
+                "Flatten",
+                "FullyConnected"
+            ],
+            "type": "string"
+        },
+        "Shape": {
+            "items": {
+                "type": "integer"
+            },
+            "type": "array",
+            "minItems": 1
+        },
+        "InputLayer": {
+            "description": "Properties specific to InputLayer",
+            "properties": {
+                "type": {
+                    "description": "Layer type",
+                    "$ref": "#/definitions/LayerType",
+                    "const": "Input"
+                },
+                "input_shape": {
+                    "description": "Shape of input data",
+                    "$ref": "#/definitions/Shape"
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "input_shape"
+            ]
+        },
+        "ConvolutionLayer": {
+            "description": "Properties specific to ConvolutionLayer",
+            "properties": {
+                "type": {
+                    "description": "Layer type",
+                    "$ref": "#/definitions/LayerType",
+                    "const": "Convolution"
+                },
+                "kernel": {
+                    "description": "Shape of kernel",
+                    "$ref": "#/definitions/Shape"
+                },
+                "stride": {
+                    "description": "Shape of stride",
+                    "$ref": "#/definitions/Shape"
+                },
+                "filters": {
+                    "description": "Filters count",
+                    "type": "integer",
+                    "minimum": 1
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "kernel",
+                "stride",
+                "filters"
+            ]
+        },
+        "MaxPoolLayer": {
+            "description": "Properties specific to MaxPoolLayer",
+            "properties": {
+                "type": {
+                    "description": "Layer type",
+                    "$ref": "#/definitions/LayerType",
+                    "const": "MaxPool"
+                },
+                "kernel": {
+                    "description": "Shape of kernel",
+                    "$ref": "#/definitions/Shape"
+                },
+                "stride": {
+                    "description": "Shape of stride",
+                    "$ref": "#/definitions/Shape"
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "kernel",
+                "stride"
+            ]
+        },
+        "FlattenLayer": {
+            "description": "Properties specific to FlattenLayer",
+            "properties": {
+                "type": {
+                    "description": "Layer type",
+                    "$ref": "#/definitions/LayerType",
+                    "const": "Flatten"
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "type"
+            ]
+        },
+        "FullyConnectedLayer": {
+            "description": "Properties specific to FullyConnectedLayer",
+            "properties": {
+                "type": {
+                    "description": "Layer type",
+                    "$ref": "#/definitions/LayerType",
+                    "const": "FullyConnected"
+                },
+                "neurons": {
+                    "description": "Neurons count",
+                    "type": "integer",
+                    "minimum": 1
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "neurons"
+            ]
+        },
+        "Layer": {
+            "description": "Properties specific to a unique layer.",
+            "anyOf": [
+                {
+                    "$ref": "#/definitions/InputLayer"
+                },
+                {
+                    "$ref": "#/definitions/ConvolutionLayer"
+                },
+                {
+                    "$ref": "#/definitions/MaxPoolLayer"
+                },
+                {
+                    "$ref": "#/definitions/FlattenLayer"
+                },
+                {
+                    "$ref": "#/definitions/FullyConnectedLayer"
+                }
+            ],
+            "required": [
+                "type"
+            ]
+        },
+        "Architecture": {
+            "description": "A list of neural network layers and the properties specific to each.",
+            "patternProperties": {
+                "^[a-zA-Z0-9_]+$": {
+                    "$ref": "#/definitions/Layer"
+                }
+            },
+            "minProperties": 2,
+            "additionalProperties": false,
+            "type": "object"
+        }
+    },
+    "anyOf": [
+        {
+            "properties": {
+                "architecture": {
+                    "$ref": "#/definitions/Architecture"
+                }
+            },
+            "required": [
+                "architecture"
+            ]
+        }
+    ]
+}

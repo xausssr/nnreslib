@@ -7,7 +7,6 @@ from nnreslib.utils.types import Shape
 
 
 def test_architecture_flat_valid():
-
     simple_architecture_def: ArchitectureType = [
         InputLayer("input", Shape(15, 10, 1)),
         ConvolutionLayer("conv_1", Shape(5, 5), Shape(5, 5), 3),
