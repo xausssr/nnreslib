@@ -1,3 +1,6 @@
+from os import PathLike
+from typing import Union, overload
+
 from .architecture import Architecture, ArchitectureType
 from .graph import ForwardGraph
 from .utils.metrics import Metrics
@@ -6,10 +9,44 @@ from .utils.metrics import Metrics
 class Model:
     __slots__ = ("batch_size", "architecture", "forward_graph", "verbose", "metrics")
 
+    @overload
     def __init__(
         self,
         batch_size: int,
         architecture: ArchitectureType,
+        data_mean: float = 0.0,
+        data_std: float = 0.0,
+        verbose: bool = False,
+    ) -> None:
+        """
+        Load explicit defined architecture
+        """
+
+    @overload
+    def __init__(
+        self, batch_size: int, architecture: str, data_mean: float = 0.0, data_std: float = 0.0, verbose: bool = False
+    ) -> None:
+        """
+        Load architecture from file
+        """
+
+    @overload
+    def __init__(
+        self,
+        batch_size: int,
+        architecture: PathLike,
+        data_mean: float = 0.0,
+        data_std: float = 0.0,
+        verbose: bool = False,
+    ) -> None:
+        """
+        Load architecture from file
+        """
+
+    def __init__(
+        self,
+        batch_size: int,
+        architecture: Union[ArchitectureType, str, PathLike],
         data_mean: float = 0.0,
         data_std: float = 0.0,
         verbose: bool = False,

@@ -1,0 +1,49 @@
+{
+    "$schema": "../doc/architecture.schema.json",
+    "comment": "# TODO: Change $schema to github when repo will be public",
+    "comment2": "# TODO: May be need move it to doc",
+    "architecture": {
+        "input": {
+            "type": "Input",
+            "input_shape": [
+                15,
+                10,
+                1
+            ]
+        },
+        "conv_1": {
+            "type": "Convolution",
+            "kernel": [
+                5,
+                5
+            ],
+            "stride": [
+                5,
+                5
+            ],
+            "filters": 3
+        },
+        "pool_1": {
+            "type": "MaxPool",
+            "kernel": [
+                3,
+                2
+            ],
+            "stride": [
+                1,
+                1
+            ]
+        },
+        "flat_1": {
+            "type": "Flatten"
+        },
+        "fc_1": {
+            "type": "FullyConnected",
+            "neurons": 3
+        },
+        "fc_2": {
+            "type": "FullyConnected",
+            "neurons": 2
+        }
+    }
+}

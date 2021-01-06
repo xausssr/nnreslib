@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import collections.abc as ca
+import json
+import sys
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Dict, Generator, Iterable, List, Mapping, Sequence, Tuple, Union, cast
+from os import PathLike
+from pathlib import Path
+from typing import Any, Dict, Generator, Iterable, List, Mapping, Sequence, TextIO, Tuple, Union, cast, overload
+
+from jsonschema import validate
 
 from .layers import ConvolutionLayer, FlattenLayer, FullyConnectedLayer, InputLayer, Layer, MaxPoolLayer, TrainableLayer
-
-if TYPE_CHECKING:
-    from .utils.types import Shape
+from .utils.types import Shape
 
 ArchitectureLevelKeyType = Union[str, Sequence[str]]
 ArchitectureLevelValueType = Union[Layer, Sequence[Layer]]
@@ -25,6 +29,7 @@ class LayerInfo:
 
 
 class Architecture:
+    JSON_SCHEMA = Path(__file__).parent.parent / "doc" / "architecture.schema.json"
     __slots__ = (
         "neurons_count",
         "_layers",
@@ -34,17 +39,59 @@ class Architecture:
         "_architecture",
     )
 
-    def __init__(self, architecture: ArchitectureType):
+    @overload
+    def __init__(self, architecture: ArchitectureType) -> None:
+        ...
+
+    @overload
+    def __init__(self, architecture: str) -> None:
+        ...
+
+    @overload
+    def __init__(self, architecture: PathLike) -> None:
+        ...
+
+    def __init__(self, architecture: Union[ArchitectureType, str, PathLike]) -> None:
         self.neurons_count = 0
         self._layers: Dict[str, LayerInfo] = {}
         self._input_layers: List[str] = []
         self._output_layers: List[str] = []
         self._initialized_layers: List[str] = []
         self._architecture: Dict[str, Sequence[str]] = {}
-        self._parse_layers(architecture)
-        self._build(architecture)
+        _architecture: ArchitectureType = Architecture._load_architecture(architecture)
+        self._parse_layers(_architecture)
+        self._build(_architecture)
 
-    # TODO: load architecture from json/yaml
+    @staticmethod
+    def _load_architecture_from_json(input_fd: TextIO) -> ArchitectureType:
+        def get_layer_args(layer_info: Dict[str, Any]) -> Dict[str, Any]:
+            del layer_info["type"]
+            for shape_param in ("input_shape", "kernel", "stride"):
+                if value := layer_info.get(shape_param):
+                    layer_info[shape_param] = Shape(value)
+            return layer_info
+
+        arch = json.load(input_fd)
+        with open(Architecture.JSON_SCHEMA, encoding="utf-8") as schema_fd:
+            schema = json.load(schema_fd)
+        validate(arch, schema)
+
+        parsed_arch: List[ArchitectureLevelType] = []
+        for layer_name, layer_info in arch["architecture"].items():
+            layer_ctor = getattr(sys.modules["nnreslib.layers"], layer_info["type"] + "Layer")
+            parsed_arch.append(layer_ctor(layer_name, **get_layer_args(layer_info)))
+        return parsed_arch
+
+    @staticmethod
+    def _load_architecture(architecture: Union[ArchitectureType, str, PathLike]) -> ArchitectureType:
+        if not isinstance(architecture, (str, PathLike)):  # type: ignore
+            return architecture
+
+        arch_path = Path(architecture)
+        with open(arch_path, encoding="utf-8") as input_fd:
+            if arch_path.suffix == ".json":
+                return Architecture._load_architecture_from_json(input_fd)
+            raise ValueError("nnreslib supports only json architecture definition")
 
     @staticmethod
     def _parse_layer_plain_definition(level: ArchitectureLevelValueType) -> ParseResultType:
