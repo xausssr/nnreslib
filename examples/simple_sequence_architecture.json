@@ -2,17 +2,19 @@
     "$schema": "../doc/architecture.schema.json",
     "comment": "# TODO: Change $schema to github when repo will be public",
     "comment2": "# TODO: May be need move it to doc",
-    "architecture": {
-        "input": {
-            "type": "Input",
+    "architecture": [
+        {
+            "name": "input",
+            "type": "InputLayer",
             "input_shape": [
                 15,
                 10,
                 1
             ]
         },
-        "conv_1": {
-            "type": "Convolution",
+        {
+            "name": "conv_1",
+            "type": "ConvolutionLayer",
             "kernel": [
                 5,
                 5
@@ -23,8 +25,9 @@
             ],
             "filters": 3
         },
-        "pool_1": {
-            "type": "MaxPool",
+        {
+            "name": "pool_1",
+            "type": "MaxPoolLayer",
             "kernel": [
                 3,
                 2
@@ -34,16 +37,19 @@
                 1
             ]
         },
-        "flat_1": {
-            "type": "Flatten"
+        {
+            "name": "flat_1",
+            "type": "FlattenLayer"
         },
-        "fc_1": {
-            "type": "FullyConnected",
+        {
+            "name": "fc_1",
+            "type": "FullyConnectedLayer",
             "neurons": 3
         },
-        "fc_2": {
-            "type": "FullyConnected",
+        {
+            "name": "fc_2",
+            "type": "FullyConnectedLayer",
             "neurons": 2
         }
-    }
+    ]
 }
