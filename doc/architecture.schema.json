@@ -5,11 +5,13 @@
     "description": "Neural Net architecture definition",
     "definitions": {
         "LayerName": {
+            "description": "Layer name",
             "pattern": "^[a-zA-Z0-9_]+$",
             "type": "string",
             "minLength": 1
         },
         "LayerType": {
+            "description": "Layer type",
             "enum": [
                 "InputLayer",
                 "ConvolutionLayer",
@@ -58,15 +60,23 @@
                 }
             ]
         },
+        "ActivationFunctions": {
+            "description": "Activation function",
+            "enum": [
+                "SIGMOID",
+                "RELU",
+                "TANH",
+                "SOFT_MAX"
+            ],
+            "type": "string"
+        },
         "InputLayer": {
             "description": "Properties specific to InputLayer",
             "properties": {
                 "name": {
-                    "description": "Layer name",
                     "$ref": "#/definitions/LayerName"
                 },
                 "type": {
-                    "description": "Layer type",
                     "$ref": "#/definitions/LayerType",
                     "const": "InputLayer"
                 },
@@ -85,11 +95,9 @@
             "description": "Properties specific to ConvolutionLayer",
             "properties": {
                 "name": {
-                    "description": "Layer name",
                     "$ref": "#/definitions/LayerName"
                 },
                 "type": {
-                    "description": "Layer type",
                     "$ref": "#/definitions/LayerType",
                     "const": "ConvolutionLayer"
                 },
@@ -105,6 +113,10 @@
                     "description": "Filters count",
                     "type": "integer",
                     "minimum": 1
+                },
+                "activation": {
+                    "$ref": "#/definitions/ActivationFunctions",
+                    "default": "RELU"
                 }
             },
             "additionalProperties": false,
@@ -119,11 +131,9 @@
             "description": "Properties specific to MaxPoolLayer",
             "properties": {
                 "name": {
-                    "description": "Layer name",
                     "$ref": "#/definitions/LayerName"
                 },
                 "type": {
-                    "description": "Layer type",
                     "$ref": "#/definitions/LayerType",
                     "const": "MaxPoolLayer"
                 },
@@ -147,11 +157,9 @@
             "description": "Properties specific to FlattenLayer",
             "properties": {
                 "name": {
-                    "description": "Layer name",
                     "$ref": "#/definitions/LayerName"
                 },
                 "type": {
-                    "description": "Layer type",
                     "$ref": "#/definitions/LayerType",
                     "const": "FlattenLayer"
                 }
@@ -165,11 +173,9 @@
             "description": "Properties specific to FullyConnectedLayer",
             "properties": {
                 "name": {
-                    "description": "Layer name",
                     "$ref": "#/definitions/LayerName"
                 },
                 "type": {
-                    "description": "Layer type",
                     "$ref": "#/definitions/LayerType",
                     "const": "FullyConnectedLayer"
                 },
@@ -177,6 +183,10 @@
                     "description": "Neurons count",
                     "type": "integer",
                     "minimum": 1
+                },
+                "activation": {
+                    "$ref": "#/definitions/ActivationFunctions",
+                    "default": "SIGMOID"
                 }
             },
             "additionalProperties": false,
