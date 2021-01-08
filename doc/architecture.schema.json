@@ -75,6 +75,30 @@
             ],
             "type": "string"
         },
+        "StandartInitializer": {
+            "enum": [
+                "ZEROS",
+                "HE_NORMAL",
+                "HAYKIN"
+            ],
+            "type": "string"
+        },
+        "Initialization": {
+            "description": "# FIXME: fix description",
+            "$comment": "# TODO: support custom initializers",
+            "properties": {
+                "weigths_initializer": {
+                    "$ref": "#/definitions/StandartInitializer",
+                    "default": "HE_NORMAL"
+                },
+                "biases_initializer": {
+                    "$ref": "#/definitions/StandartInitializer",
+                    "default": "ZEROS"
+                }
+            },
+            "additionalProperties": false,
+            "type": "object"
+        },
         "InputLayer": {
             "description": "Properties specific to InputLayer",
             "properties": {
@@ -122,6 +146,9 @@
                 "activation": {
                     "$ref": "#/definitions/ActivationFunctions",
                     "default": "RELU"
+                },
+                "initializer": {
+                    "$ref": "#/definitions/Initialization"
                 },
                 "is_out": {
                     "$ref": "#/definitions/IsOutputLayer"
@@ -201,6 +228,9 @@
                 "activation": {
                     "$ref": "#/definitions/ActivationFunctions",
                     "default": "SIGMOID"
+                },
+                "initializer": {
+                    "$ref": "#/definitions/Initialization"
                 },
                 "is_out": {
                     "$ref": "#/definitions/IsOutputLayer"
