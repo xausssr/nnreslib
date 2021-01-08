@@ -173,6 +173,17 @@
                     "type": "integer",
                     "minimum": 1
                 },
+                "pad": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/Shape"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null
+                },
                 "merge": {
                     "oneOf": [
                         {
