@@ -51,12 +51,13 @@
             },
             "additionalProperties": false,
             "required": [
-                "shape"
+                "shape",
+                "is_null"
             ],
             "type": "object"
         },
         "Shape": {
-            "anyOf": [
+            "oneOf": [
                 {
                     "$ref": "#/definitions/SimpleShape"
                 },
@@ -64,6 +65,35 @@
                     "$ref": "#/definitions/FullShape"
                 }
             ]
+        },
+        "MergeFunctions": {
+            "$comment": "# FIXME: Actualize enum to nnreslib.utils.merge.MergeFunctions after full merge implementation",
+            "enum": [
+                "RESHAPE_TO_MAIN"
+            ],
+            "type": "string"
+        },
+        "Merge": {
+            "properties": {
+                "main_input": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/LayerName"
+                        },
+                        {
+                            "const": ""
+                        }
+                    ],
+                    "default": "",
+                    "type": "string"
+                },
+                "merge_func": {
+                    "$ref": "#/definitions/MergeFunctions",
+                    "default": "RESHAPE_TO_MAIN",
+                    "$comment": "# FIXME: actualize to nnreslib.utils.merge.MergeInputs"
+                }
+            },
+            "type": "object"
         },
         "ActivationFunctions": {
             "description": "Activation function",
@@ -143,6 +173,17 @@
                     "type": "integer",
                     "minimum": 1
                 },
+                "merge": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/Merge"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null
+                },
                 "activation": {
                     "$ref": "#/definitions/ActivationFunctions",
                     "default": "RELU"
@@ -180,6 +221,17 @@
                     "description": "Shape of stride",
                     "$ref": "#/definitions/Shape"
                 },
+                "merge": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/Merge"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null
+                },
                 "is_out": {
                     "$ref": "#/definitions/IsOutputLayer"
                 }
@@ -200,6 +252,17 @@
                 "type": {
                     "$ref": "#/definitions/LayerType",
                     "const": "FlattenLayer"
+                },
+                "merge": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/Merge"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null
                 },
                 "is_out": {
                     "$ref": "#/definitions/IsOutputLayer"
@@ -225,6 +288,17 @@
                     "type": "integer",
                     "minimum": 1
                 },
+                "merge": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/Merge"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null
+                },
                 "activation": {
                     "$ref": "#/definitions/ActivationFunctions",
                     "default": "SIGMOID"
@@ -244,7 +318,7 @@
         },
         "Layer": {
             "description": "Properties specific to a unique layer.",
-            "anyOf": [
+            "oneOf": [
                 {
                     "$ref": "#/definitions/InputLayer"
                 },
@@ -277,7 +351,7 @@
         "LayersWithCustomInputsDefinition": {
             "properties": {
                 "inputs": {
-                    "anyOf": [
+                    "oneOf": [
                         {
                             "$ref": "#/definitions/LayerName"
                         },
@@ -291,7 +365,7 @@
                     ]
                 },
                 "layers": {
-                    "anyOf": [
+                    "oneOf": [
                         {
                             "$ref": "#/definitions/Layer"
                         },
@@ -318,7 +392,7 @@
         "Architecture": {
             "description": "A list of neural network layers and the properties specific to each.",
             "items": {
-                "anyOf": [
+                "oneOf": [
                     {
                         "$ref": "#/definitions/Layer"
                     },
@@ -335,7 +409,7 @@
             "type": "array"
         }
     },
-    "anyOf": [
+    "oneOf": [
         {
             "properties": {
                 "architecture": {
