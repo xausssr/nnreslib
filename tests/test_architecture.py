@@ -61,13 +61,14 @@ def test_architecture_inception_valid():
     for real_shape, true_shape in zip(
         real_shapes,
         [
-            ((15, 10, 1), (15, 10, 1)),
-            ((15, 10, 1), (3, 2, 5)),
-            ((15, 10, 1), (15, 10, 5)),
-            ((3, 2, 5), (1, 1, 5)),
-            ((1, 1, 5), (5,)),
-            ((5,), (3,)),
-            ((3,), (2,)),
+            # input_shape  output_shape
+            ((15, 10, 1), (15, 10, 1)),  # input
+            ((15, 10, 1), (3, 2, 5)),  # conv_1
+            ((15, 10, 1), (15, 10, 5)),  # conv_2
+            ((3, 2, 10), (1, 1, 10)),  # pool_1
+            ((1, 1, 10), (10,)),  # flat_1
+            ((10,), (3,)),  # fc_1
+            ((3,), (2,)),  # fc_2
         ],
     ):
         assert real_shape[0] == true_shape[0] and real_shape[1] == true_shape[1]
