@@ -21,6 +21,11 @@
             ],
             "type": "string"
         },
+        "IsOutputLayer": {
+            "description": "Is output layer? # FIXME: fix description",
+            "default": false,
+            "type": "boolean"
+        },
         "SimpleShape": {
             "items": {
                 "minimum": 1,
@@ -117,6 +122,9 @@
                 "activation": {
                     "$ref": "#/definitions/ActivationFunctions",
                     "default": "RELU"
+                },
+                "is_out": {
+                    "$ref": "#/definitions/IsOutputLayer"
                 }
             },
             "additionalProperties": false,
@@ -144,6 +152,9 @@
                 "stride": {
                     "description": "Shape of stride",
                     "$ref": "#/definitions/Shape"
+                },
+                "is_out": {
+                    "$ref": "#/definitions/IsOutputLayer"
                 }
             },
             "additionalProperties": false,
@@ -162,6 +173,9 @@
                 "type": {
                     "$ref": "#/definitions/LayerType",
                     "const": "FlattenLayer"
+                },
+                "is_out": {
+                    "$ref": "#/definitions/IsOutputLayer"
                 }
             },
             "additionalProperties": false,
@@ -187,6 +201,9 @@
                 "activation": {
                     "$ref": "#/definitions/ActivationFunctions",
                     "default": "SIGMOID"
+                },
+                "is_out": {
+                    "$ref": "#/definitions/IsOutputLayer"
                 }
             },
             "additionalProperties": false,
