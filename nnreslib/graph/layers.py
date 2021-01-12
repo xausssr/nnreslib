@@ -28,17 +28,14 @@ class LayerFunc(ABC):
 
         return decorator
 
-    # pylint:disable=protected-access
     @classmethod
-    def get_layer_func(cls, layer: Layer, *args: ArgsType, **kwargs: ArgsType) -> Union[LayerFunc, G._placeholder]:
+    def get_layer_func(cls, layer: Layer, *args: ArgsType, **kwargs: ArgsType) -> Union[LayerFunc, G.PlaceholderType]:
         if isinstance(layer, InputLayer):
             return G.placeholder(name=layer.name, shape=(kwargs["batch_size"], *layer.output_shape))
         layer_func = cls._subclasses.get(type(layer), None)
         if layer_func:
             return layer_func(layer, *args, **kwargs)
         raise ValueError(f"Unsupported type: {type(layer)}")
-
-    # pylint:enable=protected-access
 
     @abstractmethod
     def __call__(self, layer_input: G.Tensor) -> G.Tensor:
