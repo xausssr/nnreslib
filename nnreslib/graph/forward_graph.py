@@ -10,9 +10,7 @@ from ..layers import Layer, TrainableLayer
 
 _logger = logging.getLogger(__name__)
 
-# pylint:disable=protected-access
-Parameters = NamedTuple("Parameters", [("weights", G._variable), ("biases", G._variable)])
-# pylint:enable=protected-access
+Parameters = NamedTuple("Parameters", [("weights", G.VariableType), ("biases", G.VariableType)])
 
 # FIXME: Global fix G(TF) type annotations
 
