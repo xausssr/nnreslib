@@ -3,11 +3,13 @@ from . import BACKEND, Backends
 if BACKEND == Backends.TF:
     from .tf.graph import (
         GradientDescentOptimizer,
+        Operation,
         Session,
         Tensor,
         _placeholder,
         _variable,
         assign,
+        concat,
         conv2d,
         eye,
         global_variables_initializer,
@@ -35,6 +37,7 @@ __all__ = [
     "variable",
     "_variable",
     "split",
+    "concat",
     "conv2d",
     "max_pool",
     "reshape",
@@ -43,7 +46,6 @@ __all__ = [
     "squeeze",
     "reduce_mean",
     "square",
-    "gradients",
     "gradients",
     "GradientDescentOptimizer",
     "eye",
@@ -54,4 +56,5 @@ __all__ = [
     "Session",
     "global_variables_initializer",
     "Tensor",
+    "Operation",
 ]

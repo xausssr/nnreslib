@@ -20,11 +20,9 @@ Parameters = NamedTuple("Parameters", [("weights", G._variable), ("biases", G._v
 class ForwardGraph:
     __slots__ = (
         # "batch_size",
-        # "input_data",
-        "input_labels",
         "layers",
         "parameters",
-        # "output",
+        "output",
         # "vector_error",
         # "train_loss",
     )
@@ -32,25 +30,15 @@ class ForwardGraph:
     def __init__(self, batch_size: int, architecture: Architecture) -> None:
         # self.batch_size = batch_size
 
-        # XXX: This exist in self.layers. It's really need?
-        # self.input_data = {
-        #     x.name: G.placeholder(name=x.name, shape=(batch_size, *x.output_shape)) for x in architecture.input_layers
-        # }
-
-        # XXX: Is it calculated on output layer's shapes??
-        self.input_labels = [
-            G.placeholder(name=x.name, shape=(batch_size, *x.output_shape)) for x in architecture.output_layers
-        ]  # TODO: may be output_data???
-
         self.parameters: List[Parameters] = []
 
-        _logger.debug("Start building model graph")  # TODO: debug or info?
+        _logger.info("Start building model graph")
         layers = self._create_layers(batch_size, architecture)
 
         # Move placeholders for input layers to graph layers dict
         self.layers: Dict[str, Union[Callable[..., G.Tensor], G.Tensor]] = {
             x: layers[x] for x in architecture._input_layers
-        }  # TODO: layer is Callable or Tensor?
+        }  # FIXME: layer is Callable[..., G.Tensor]
 
         # dict value is G.variable
         recurrent_layers: Dict[str, G.Tensor] = {}
@@ -92,12 +80,6 @@ class ForwardGraph:
             if layer.name in recurrent_layers:
                 self.layers[layer.name] = recurrent_layers[layer.name].assign(self.layers[layer.name])
                 del recurrent_layers[layer.name]
-
-        # # tf.Varibale([w+b+w1+b1])
-
-        # self.output = tf.squeeze(current_node)
-        # self.vector_error = self.input_labels - self.settings.outputs
-        # self.train_loss = tf.reduce_mean(tf.square(self.vector_error), name="Train_loss")
 
     # pylint:disable=protected-access
     @staticmethod
