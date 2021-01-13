@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict
 
 from .base_layer import Layer
 
@@ -19,3 +19,12 @@ class InputLayer(Layer):
 
     def set_shapes(self, main_input: Shape, *other_input: Shape) -> None:
         return
+
+    # TODO: fix return type annotation
+    def serialize(self) -> Dict[str, Any]:
+        return dict(
+            name=self.name,
+            type=self.__class__.__name__,
+            input_shape=self.input_shape.serialize(),
+            output_shape=self.output_shape.serialize(),
+        )

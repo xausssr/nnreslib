@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from .base_layer import Layer
 from ..utils.initialization import Initialization
@@ -57,3 +57,10 @@ class TrainableLayer(Layer):
 
     def set_biases(self, data_mean: float = 0.0, data_std: float = 0.0) -> None:
         self._biases = self.initializer.init_biases(self, data_mean, data_std)
+
+    # TODO: fix return type annotation
+    def serialize(self) -> Dict[str, Any]:
+        serialized = super().serialize()
+        serialized["activation"] = self.activation.name
+        serialized["initializer"] = self.initializer.serialize()
+        return serialized

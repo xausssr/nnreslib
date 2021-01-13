@@ -32,10 +32,10 @@ def test_architecture_flat_valid():
         assert real_shape[0] == true_shape[0] and real_shape[1] == true_shape[1]
     assert simple_architecture._architecture == {  # pylint:disable=protected-access
         "conv_1": ("input",),
-        "pool_1": ["conv_1"],
-        "flat_1": ["pool_1"],
-        "fc_1": ["flat_1"],
-        "fc_2": ["fc_1"],
+        "pool_1": ("conv_1",),
+        "flat_1": ("pool_1",),
+        "fc_1": ("flat_1",),
+        "fc_2": ("fc_1",),
     }
 
 
@@ -77,8 +77,8 @@ def test_architecture_inception_valid():
         "conv_2": ("input",),
         "pool_1": ("conv_1", "conv_2"),
         "flat_1": ("pool_1",),
-        "fc_1": ["flat_1"],
-        "fc_2": ["fc_1"],
+        "fc_1": ("flat_1",),
+        "fc_2": ("fc_1",),
     }
 
 

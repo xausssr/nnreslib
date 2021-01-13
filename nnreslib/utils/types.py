@@ -4,12 +4,15 @@ import collections.abc as ca
 import functools
 import operator
 from enum import Enum, unique
-from typing import TYPE_CHECKING, overload
+from typing import Generator, List, Optional, Sequence, Tuple, Union, overload
+
+from typing_extensions import TypedDict
 
 from ..backend.activation_functions import relu, sigmoid, softmax, tanh
 
-if TYPE_CHECKING:
-    from typing import Generator, Optional, Sequence, Tuple, Union
+SerializedSimpleShapeType = List[int]
+SerializedFullShapeType = TypedDict("SerializedFullShapeType", {"shape": SerializedSimpleShapeType, "is_null": bool})
+SerializedShapeType = Union[SerializedSimpleShapeType, SerializedFullShapeType]
 
 
 @unique
@@ -106,3 +109,9 @@ class Shape:
         if self._prod == -1:
             self._prod = functools.reduce(operator.mul, self.dimension, 1)
         return self._prod
+
+    # TODO: fix return type annotation
+    def serialize(self) -> SerializedShapeType:
+        if not self.is_null:
+            return [*self.dimension]
+        return dict(shape=[*self.dimension], is_null=self.is_null)

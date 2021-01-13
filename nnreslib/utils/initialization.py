@@ -4,7 +4,7 @@ import collections.abc as ca
 import functools
 import math
 from enum import Enum
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable, Dict
 
 import numpy as np
 
@@ -56,6 +56,7 @@ InitializerType = Callable[[Shape, Shape, Shape, float, float], np.ndarray]
 
 
 class Initialization:
+    # FIXME: write docstring
     def __init__(
         self,
         weights_initializer: InitializerType = StandartInitializer.HE_NORMAL.value,
@@ -74,3 +75,8 @@ class Initialization:
 
     def init_biases(self, layer: TrainableLayer, data_mean: float = 0.0, data_std: float = 0.0) -> np.ndarray:
         return self.biases(layer.input_shape, layer.output_shape, layer.biases_shape, data_mean, data_std)
+
+    # TODO: fix return type annotation
+    def serialize(self) -> Dict[str, Any]:
+        # TODO: get correct parameter's values
+        return dict(weights_initializer="HE_NORMAL", biases_initializer="ZEROS")

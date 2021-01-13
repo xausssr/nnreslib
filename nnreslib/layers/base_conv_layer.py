@@ -1,5 +1,5 @@
 import math
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from .base_layer import Layer
 from ..utils.merge import MergeInputs
@@ -40,3 +40,10 @@ class BaseConvLayer(Layer):
             ),
             last_dim,
         )
+
+    # TODO: fix return type annotation
+    def serialize(self) -> Dict[str, Any]:
+        serialized = super().serialize()
+        serialized["kernel"] = self.kernel.serialize()
+        serialized["stride"] = self.stride.serialize()
+        return serialized

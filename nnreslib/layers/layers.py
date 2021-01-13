@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from .base_conv_layer import BaseConvLayer
 from .base_layer import Layer
@@ -59,6 +59,13 @@ class ConvolutionLayer(BaseConvLayer, TrainableLayer):
             *((1,) * len(self.kernel)), 1, self.filters
         )  # TODO: # Make third dim equal to self.input_shape[-1]
 
+    # TODO: fix return type annotation
+    def serialize(self) -> Dict[str, Any]:
+        serialized = super().serialize()
+        serialized["filters"] = self.filters
+        serialized["pad"] = self.pad.serialize()
+        return serialized
+
 
 class MaxPoolLayer(BaseConvLayer):
     __slots__ = ()
@@ -115,3 +122,9 @@ class FullyConnectedLayer(TrainableLayer):
     @property
     def biases_shape(self) -> Shape:
         return Shape(1, self.neurons)
+
+    # TODO: fix return type annotation
+    def serialize(self) -> Dict[str, Any]:
+        serialized = super().serialize()
+        serialized["neurons"] = self.neurons
+        return serialized

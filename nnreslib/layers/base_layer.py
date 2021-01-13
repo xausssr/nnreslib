@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from ..utils.merge import MergeInputs
 from ..utils.types import Shape
@@ -54,3 +54,15 @@ class Layer(ABC):
     @property
     def neurons_count(self) -> int:
         return 0
+
+    def to_json(self) -> str:
+        ...
+
+    # TODO: fix return type annotation
+    def serialize(self) -> Dict[str, Any]:
+        return dict(
+            name=self.name,
+            type=self.__class__.__name__,
+            merge=None if self.merge is None else self.merge.serialize(),
+            is_out=self.is_out,
+        )

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import functools
 from enum import Enum, unique
-from typing import Callable, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Optional, Sequence, Union
 
 from .types import Shape
 from ..backend import graph as G
@@ -53,6 +53,7 @@ class MergeShapeFunction(Enum):
 
 
 class MergeInputs:
+    # FIXME: write docstring
     __slots__ = ("main_input", "_merge_func", "result_shape")
 
     def __init__(self, main_input: str = "", merge_func: MergeFunctions = MergeFunctions.RESHAPE_TO_MAIN):
@@ -78,3 +79,7 @@ class MergeInputs:
     #     *other_input: Union[Callable[..., G.Tensor], G.Tensor]
     # ) -> Union[Callable[..., G.Tensor], G.Tensor]:
     #     return self._merge_func.value(main_input, *other_input)
+
+    # TODO: fix return type annotation
+    def serialize(self) -> Dict[str, Any]:
+        return dict(main_input=self.main_input, merge_func=self._merge_func.name)
