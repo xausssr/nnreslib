@@ -3,7 +3,7 @@ import pytest
 from nnreslib.utils.types import Shape
 
 
-def test_shape_from_none():
+def test_from_none():
     with pytest.raises(ValueError, match=r".*int$"):
         Shape((1, None))
 
@@ -11,31 +11,31 @@ def test_shape_from_none():
         Shape([None])
 
 
-def test_shape_with_zero():
+def test_with_zero():
     with pytest.raises(ValueError, match=r".*negative.*"):
         Shape(1, 0, 3)
 
 
-def test_shape_with_negative_dimension():
+def test_with_negative_dimension():
     with pytest.raises(ValueError, match=r".*negative.*"):
         Shape(2, -3)
 
 
-def test_shape_from_list():
+def test_from_list():
     assert Shape([]) == ()
     assert Shape([1]) == (1,)
     assert Shape([1, 2, 3]) == (1, 2, 3)
     assert Shape([0, 0, 0], is_null=True) == (0, 0, 0)
 
 
-def test_shape_from_tuple():
+def test_from_tuple():
     assert Shape(()) == ()
     assert Shape((1,)) == (1,)
     assert Shape((1, 2, 3)) == (1, 2, 3)
     assert Shape((0, 0, 0), is_null=True) == (0, 0, 0)
 
 
-def test_shape_init():
+def test_init():
     assert Shape(None) == ()
     assert Shape() == ()
     assert Shape(1) == (1,)
@@ -45,7 +45,7 @@ def test_shape_init():
     assert Shape(0, 0, 0, is_null=True) == (0, 0, 0)
 
 
-def test_shape_mul():
+def test_mul():
     assert 2 * Shape() == Shape()
     assert Shape() * 2 == Shape()
     assert Shape(0, is_null=True) * 10 == (0,)
@@ -61,7 +61,7 @@ def test_shape_mul():
         Shape(4, 2) * -2  # pylint:disable=expression-not-assigned
 
 
-def test_shape_div():
+def test_div():
     assert Shape() / 2 == Shape()
     with pytest.raises(ValueError, match=r".*negative.*"):
         Shape(1) / 2  # pylint:disable=expression-not-assigned
@@ -76,7 +76,7 @@ def test_shape_div():
         Shape(10, 8) / 86.1  # pylint:disable=expression-not-assigned
 
 
-def test_shape_prod():
+def test_prod():
     assert Shape().prod == 0
     assert Shape(1, 2, 3).prod == 6
     assert Shape(1).prod == 1
@@ -85,12 +85,12 @@ def test_shape_prod():
     assert shape.prod == 30
 
 
-def test_shape_iter():
+def test_iter():
     assert list(Shape()) == []
     assert list(Shape(1, 2, 3)) == [1, 2, 3]
 
 
-def test_shape_index():
+def test_index():
     with pytest.raises(IndexError):
         Shape()[0]  # pylint:disable=expression-not-assigned
     with pytest.raises(IndexError):
@@ -101,7 +101,7 @@ def test_shape_index():
         Shape(1, 2, 3)["a"]  # pylint:disable=expression-not-assigned
 
 
-def test_shape_equal():
+def test_equal():
     assert Shape() == Shape()
     assert Shape(1, 2, 3) == Shape(1, 2, 3)
     assert Shape((1, 2, 3)) == (1, 2, 3)
@@ -111,13 +111,22 @@ def test_shape_equal():
     assert Shape() != "test"
 
 
-def test_shape_str():
+def test_str():
     assert str(Shape()) == "Shape: "
     assert str(Shape(1)) == "Shape: 1"
     assert str(Shape(1, 2, 3)) == "Shape: 1x2x3"
 
 
-def test_shape_repr():
+def test_repr():
     assert repr(Shape()) == "Shape(is_null=False)"
     assert repr(Shape(1)) == "Shape(1, is_null=False)"
     assert repr(Shape(1, 2, 3, is_null=True)) == "Shape(1, 2, 3, is_null=True)"
+
+
+def test_serialize():
+    assert Shape().serialize() == []
+    assert Shape(1, 2).serialize() == [1, 2]
+    assert Shape([5]).serialize() == [5]
+    assert Shape(0, is_null=True).serialize() == dict(shape=[0], is_null=True)
+    assert Shape(1, 2, 3, is_null=True).serialize() == dict(shape=[1, 2, 3], is_null=True)
+    assert Shape([1, 0, 3], is_null=True).serialize() == dict(shape=[1, 0, 3], is_null=True)

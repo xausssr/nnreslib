@@ -110,7 +110,6 @@ class Shape:
             self._prod = functools.reduce(operator.mul, self.dimension, 1)
         return self._prod
 
-    # TODO: fix return type annotation
     def serialize(self) -> SerializedShapeType:
         if not self.is_null:
             return [*self.dimension]
