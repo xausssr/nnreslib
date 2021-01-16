@@ -113,16 +113,40 @@
             ],
             "type": "string"
         },
+        "CustomInitializer": {
+            "$comment": "# XXX: support serialize CustomInitializer",
+            "description": "Custom initialize function",
+            "properties": {
+                "function": {
+                    "type": "string"
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "function"
+            ],
+            "type": "object"
+        },
+        "InitializeFunction": {
+            "oneOf": [
+                {
+                    "$ref": "#/definitions/StandartInitializer"
+                },
+                {
+                    "$ref": "#/definitions/CustomInitializer"
+                }
+            ]
+        },
         "Initialization": {
             "description": "# FIXME: fix description",
             "$comment": "# TODO: support custom initializers",
             "properties": {
-                "weigths_initializer": {
-                    "$ref": "#/definitions/StandartInitializer",
+                "weights_initializer": {
+                    "$ref": "#/definitions/InitializeFunction",
                     "default": "HE_NORMAL"
                 },
                 "biases_initializer": {
-                    "$ref": "#/definitions/StandartInitializer",
+                    "$ref": "#/definitions/InitializeFunction",
                     "default": "ZEROS"
                 }
             },

@@ -4,14 +4,25 @@ import collections.abc as ca
 import functools
 import math
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Dict
+from typing import TYPE_CHECKING, Callable, Union
 
 import numpy as np
+from typing_extensions import TypedDict
 
 from .types import Shape
 
 if TYPE_CHECKING:
     from ..layers import TrainableLayer
+
+SerializedStandartInitializerType = str
+SerializedCustomInitializerType = TypedDict(
+    "SerializedCustomInitializerType", {"function": str}
+)  # XXX: support serialize CustomInitializer
+SerializedInitializeFunctionType = Union[SerializedStandartInitializerType, SerializedCustomInitializerType]
+SerializedInitializationType = TypedDict(
+    "SerializedInitializationType",
+    {"weights_initializer": SerializedInitializeFunctionType, "biases_initializer": SerializedInitializeFunctionType},
+)
 
 
 # pylint:disable=unused-argument
@@ -51,6 +62,10 @@ class StandartInitializer(Enum):
     HE_NORMAL = functools.partial(_he_normal)
     HAYKIN = functools.partial(_haykin)
 
+    @property
+    def func(self) -> InitializerType:
+        return self.value.func  # type: ignore # pylint:disable=no-member
+
 
 InitializerType = Callable[[Shape, Shape, Shape, float, float], np.ndarray]
 
@@ -59,16 +74,18 @@ class Initialization:
     # FIXME: write docstring
     def __init__(
         self,
-        weights_initializer: InitializerType = StandartInitializer.HE_NORMAL.value,
-        biases_initializer: InitializerType = StandartInitializer.ZEROS.value,
+        weights_initializer: Union[StandartInitializer, InitializerType] = StandartInitializer.HE_NORMAL,
+        biases_initializer: Union[StandartInitializer, InitializerType] = StandartInitializer.ZEROS,
     ) -> None:
-        if not all(
-            map(lambda x: isinstance(x, ca.Callable), (weights_initializer, biases_initializer))  # type: ignore
-        ):
+        def check_initializer(initializer: Union[StandartInitializer, InitializerType]) -> InitializerType:
+            if isinstance(initializer, StandartInitializer):
+                return initializer.func
+            if isinstance(initializer, ca.Callable):  # type: ignore
+                return initializer
             raise ValueError("Pass callable objects to __init__")
 
-        self.weights = weights_initializer
-        self.biases = biases_initializer
+        self.weights = check_initializer(weights_initializer)
+        self.biases = check_initializer(biases_initializer)
 
     def init_weights(self, layer: TrainableLayer, data_mean: float = 0.0, data_std: float = 0.0) -> np.ndarray:
         return self.weights(layer.input_shape, layer.output_shape, layer.weights_shape, data_mean, data_std)
@@ -76,7 +93,14 @@ class Initialization:
     def init_biases(self, layer: TrainableLayer, data_mean: float = 0.0, data_std: float = 0.0) -> np.ndarray:
         return self.biases(layer.input_shape, layer.output_shape, layer.biases_shape, data_mean, data_std)
 
-    # TODO: fix return type annotation
-    def serialize(self) -> Dict[str, Any]:
-        # TODO: get correct parameter's values
-        return dict(weights_initializer="HE_NORMAL", biases_initializer="ZEROS")
+    def serialize(self) -> SerializedInitializationType:
+        def serialize_initializer(initializer: InitializerType) -> SerializedInitializeFunctionType:
+            for std_initializer in StandartInitializer:
+                if std_initializer.func == initializer:
+                    return std_initializer.name
+            return dict(function="custom")  # XXX: support serialize CustomInitializer
+
+        return dict(
+            weights_initializer=serialize_initializer(self.weights),
+            biases_initializer=serialize_initializer(self.biases),
+        )
