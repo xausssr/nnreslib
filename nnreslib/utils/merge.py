@@ -2,10 +2,17 @@ from __future__ import annotations
 
 import functools
 from enum import Enum, unique
-from typing import Any, Callable, Dict, Optional, Sequence, Union
+from typing import Callable, Optional, Sequence, Union
+
+from typing_extensions import TypedDict
 
 from .types import Shape
 from ..backend import graph as G
+
+SerializedMergeFunctionsType = str
+SerializedMergeInputsType = TypedDict(
+    "SerializedMergeInputsType", {"main_input": str, "merge_func": SerializedMergeFunctionsType}
+)
 
 
 def _data_merge_not_implemented(
@@ -80,6 +87,5 @@ class MergeInputs:
     # ) -> Union[Callable[..., G.Tensor], G.Tensor]:
     #     return self._merge_func.value(main_input, *other_input)
 
-    # TODO: fix return type annotation
-    def serialize(self) -> Dict[str, Any]:
+    def serialize(self) -> SerializedMergeInputsType:
         return dict(main_input=self.main_input, merge_func=self._merge_func.name)

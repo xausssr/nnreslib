@@ -4,7 +4,7 @@ from nnreslib.utils.merge import _check_merged_tensors, _merge_flatten, _merge_t
 from nnreslib.utils.types import Shape
 
 
-def test_check_merged_wrong_shapes():
+def test_check_merged_tensor_wrong_shapes():
     with pytest.raises(ValueError, match="Input tensors have a different number of dimentions"):
         _check_merged_tensors(
             Shape(12, 32, 12),
@@ -20,7 +20,7 @@ def test_check_merged_wrong_shapes():
         )
 
 
-def test_check_merged_correct_shapes():
+def test_check_merged_tensor_correct_shapes():
     _check_merged_tensors(Shape(12, 32, 12))
     _check_merged_tensors(
         Shape(12, 32, 12),
