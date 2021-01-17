@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 
@@ -12,7 +12,6 @@ from ...backend import graph as G
 @FitGraph.register_fitter()
 class LevenbergMarquardt(FitGraph):
     __slots__ = (
-        "vector_error",
         "train_loss",
         "save_parameters",
         "restore_parameters",
@@ -25,16 +24,14 @@ class LevenbergMarquardt(FitGraph):
     def __init__(self, batch_size: int, architecture: Architecture, forward_graph: ForwardGraph) -> None:
         super().__init__(batch_size, architecture, forward_graph)
 
-        # FIXME: fix computation for multiple output layers
-        self.vector_error = self.outputs - self.model_outputs  # use G.concat(G.flatten(x) for x in self.outputs)
-        self.train_loss = G.reduce_mean(G.square(self.vector_error), name="Train_loss")
+        self.train_loss = G.losses_mse(self.outputs, self.model_outputs)
 
         # last_node = None  # FIXME: get correct last graph node
         # x = None # FIXME: input layers from forward_graph
         # XXX: self.grads_calculate = G.gradients(last_node, x)  # Need to care
 
         # Build computation graph for Levenberg-Marqvardt algorithm
-        vectorized_parameters = LevenbergMarquardt._get_vectorized_parameters(forward_graph)
+        vectorized_parameters = self._get_vectorized_parameters()
 
         parameters_store = G.Variable(G.zeros((architecture.neurons_count,)))
         self.save_parameters = G.assign(parameters_store, vectorized_parameters)
@@ -49,22 +46,23 @@ class LevenbergMarquardt(FitGraph):
         gradients = self._get_gradients(vectorized_parameters, architecture.neurons_count)
         self.save_gradients = G.assign(gradients_store, gradients)
 
-        self.regularization_factor = G.placeholder(shape=[1], name="regularization_factor")  # mu
+        self.regularization_factor = G.placeholder(shape=[], name="regularization_factor")  # mu
 
         parameters_derivation = LevenbergMarquardt._get_parameters_derivation(
             architecture.neurons_count,
             hessian_store,
             self.regularization_factor,
             gradients_store,
-            forward_graph.parameters,
+            self.forward_graph.parameters,
         )
 
         self.parameters_update = LevenbergMarquardt._apply_parameters_derivation(
-            forward_graph.parameters, parameters_derivation
+            self.forward_graph.parameters, parameters_derivation
         )
 
-    @staticmethod
-    def _get_vectorized_parameters(forward_graph: ForwardGraph) -> G.Tensor:
+        self.session.run(G.global_variables_initializer())
+
+    def _get_vectorized_parameters(self) -> G.Tensor:
         """
         Convert list of weights and biases into one flat layer:
 
@@ -73,7 +71,7 @@ class LevenbergMarquardt(FitGraph):
         Where plus means concatenation
         """
 
-        return G.concat([G.reshape(y, [-1]) for x in forward_graph.parameters for y in x], 0)
+        return G.concat([G.reshape(y, [-1]) for x in self.forward_graph.parameters for y in x], 0)
 
     def _get_gradients(self, vectorized_parameters: G.Tensor, neurons_count: int) -> G.Tensor:
         return G.reshape(
@@ -128,6 +126,30 @@ class LevenbergMarquardt(FitGraph):
             )
         return opt.apply_gradients(parameters_update)
 
-    # TODO: describe method of LM
-    def fit(self) -> None:
-        ...
+    def _process_batch(
+        self, batch: Tuple[np.ndarray, np.ndarray], **kwargs: Any
+    ) -> Tuple[float, np.ndarray, Tuple[Any, ...]]:
+        step_into_epoch: int = kwargs["step_into_epoch"]
+        regularisation_factor_init: float = kwargs["regularisation_factor_init"]
+        regularisation_factor_decay: float = kwargs["regularisation_factor_decay"]
+        regularisation_factor_increase: float = kwargs["regularisation_factor_increase"]
+        train_dict = {
+            self.forward_graph.inputs: batch[0],
+            self.outputs: np.squeeze(np.concatenate([np.reshape(x, [-1]) for x in batch[1]], 0)),
+            self.regularization_factor: regularisation_factor_init,
+        }
+        current_loss = self.session.run(self.train_loss, train_dict)
+        self.session.run([self.save_parameters, self.save_hessian, self.save_gradients])
+        for step in range(step_into_epoch):
+            self.session.run(self.parameters_update, train_dict)
+            new_loss = self.session.run(self.train_loss, train_dict)
+            if new_loss < current_loss:
+                train_dict[self.regularization_factor] /= regularisation_factor_decay  # type: ignore
+                break
+            train_dict[self.regularization_factor] *= regularisation_factor_increase  # type: ignore
+            if step != step_into_epoch - 1:
+                self.session.run(self.restore_parameters)
+        return new_loss, self.session.run(self.outputs), (train_dict[self.regularization_factor],)
+
+    def _process_batch_result(self, params: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
+        kwargs["regularisation_factor_init"] = params[0]

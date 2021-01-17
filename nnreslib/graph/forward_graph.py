@@ -20,14 +20,16 @@ class ForwardGraph:
         # "batch_size",
         "layers",
         "parameters",
-        "output",
+        "inputs",
+        "outputs",
+        "session"
         # "vector_error",
         # "train_loss",
     )
 
     def __init__(self, batch_size: int, architecture: Architecture) -> None:
         # self.batch_size = batch_size
-
+        self.session = G.Session()
         self.parameters: List[Parameters] = []
 
         _logger.info("Start building model graph")
@@ -37,6 +39,8 @@ class ForwardGraph:
         self.layers: Dict[str, Union[Callable[..., G.Tensor], G.Tensor]] = {
             x: layers[x] for x in architecture._input_layers
         }  # FIXME: layer is Callable[..., G.Tensor]
+
+        self.inputs = tuple([self.layers[x] for x in architecture._input_layers])
 
         # dict value is G.Variable
         recurrent_layers: Dict[str, G.Tensor] = {}
@@ -78,6 +82,8 @@ class ForwardGraph:
             if layer.name in recurrent_layers:
                 self.layers[layer.name] = recurrent_layers[layer.name].assign(self.layers[layer.name])
                 del recurrent_layers[layer.name]
+
+        self.outputs = tuple([self.layers[x] for x in architecture._output_layers])
 
     # pylint:disable=protected-access
     @staticmethod
