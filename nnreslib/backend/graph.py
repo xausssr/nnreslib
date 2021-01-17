@@ -2,11 +2,14 @@ from . import BACKEND, Backends
 
 if BACKEND == Backends.TF:
     from .tf.graph import (
+        Dataset,
         GradientDescentOptimizer,
         Operation,
         PlaceholderType,
         Session,
         Tensor,
+        TensorArray,
+        Variable,
         VariableType,
         assign,
         concat,
@@ -14,6 +17,7 @@ if BACKEND == Backends.TF:
         eye,
         global_variables_initializer,
         gradients,
+        graph_function,
         hessians,
         inv,
         matmul,
@@ -25,18 +29,20 @@ if BACKEND == Backends.TF:
         split,
         square,
         squeeze,
-        variable,
         zeros,
     )
 else:
     raise ImportError(f"Unsupported backend: {BACKEND}")
 
 __all__ = [
+    "Dataset",
     "GradientDescentOptimizer",
     "Operation",
     "PlaceholderType",
     "Session",
     "Tensor",
+    "TensorArray",
+    "Variable",
     "VariableType",
     "assign",
     "concat",
@@ -44,6 +50,7 @@ __all__ = [
     "eye",
     "global_variables_initializer",
     "gradients",
+    "graph_function",
     "hessians",
     "inv",
     "matmul",
@@ -55,6 +62,5 @@ __all__ = [
     "split",
     "square",
     "squeeze",
-    "variable",
     "zeros",
 ]

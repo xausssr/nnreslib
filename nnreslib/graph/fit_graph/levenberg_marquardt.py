@@ -36,16 +36,16 @@ class LevenbergMarquardt(FitGraph):
         # Build computation graph for Levenberg-Marqvardt algorithm
         vectorized_parameters = LevenbergMarquardt._get_vectorized_parameters(forward_graph)
 
-        parameters_store = G.variable(G.zeros((architecture.neurons_count,)))
+        parameters_store = G.Variable(G.zeros((architecture.neurons_count,)))
         self.save_parameters = G.assign(parameters_store, vectorized_parameters)
         self.restore_parameters = G.assign(vectorized_parameters, parameters_store)
 
         # TODO: Add Hessian approximation
-        hessian_store = G.variable(G.zeros((architecture.neurons_count, architecture.neurons_count)))
+        hessian_store = G.Variable(G.zeros((architecture.neurons_count, architecture.neurons_count)))
         hessian_approximation = G.hessians(self.train_loss, vectorized_parameters)[0]
         self.save_hessian = G.assign(hessian_store, hessian_approximation)
 
-        gradients_store = G.variable(G.zeros((architecture.neurons_count, 1)))
+        gradients_store = G.Variable(G.zeros((architecture.neurons_count, 1)))
         gradients = self._get_gradients(vectorized_parameters, architecture.neurons_count)
         self.save_gradients = G.assign(gradients_store, gradients)
 
@@ -85,9 +85,9 @@ class LevenbergMarquardt(FitGraph):
     @staticmethod
     def _get_parameters_derivation(
         neurons_count: int,
-        hessian_store: G._variable,
-        regularization_factor: G._placeholder,
-        gradients_store: G._variable,
+        hessian_store: G.VariableType,
+        regularization_factor: G.PlaceholderType,
+        gradients_store: G.VariableType,
         parameters: List[Parameters],
     ) -> List[G.Tensor]:
         "Calculate dx and split it for individual parameters: dx -> [w0, b0, ..., wN, bN]"
@@ -115,22 +115,18 @@ class LevenbergMarquardt(FitGraph):
     @staticmethod
     def _apply_parameters_derivation(
         parameters: List[Parameters], parameters_derivation: List[G.Tensor]
-    ) -> List[G.Operation]:
+    ) -> G.Operation:
         opt = G.GradientDescentOptimizer(learning_rate=1)
         parameters_update = []
         layer: Parameters
         for layer_num, layer in enumerate(parameters):
             parameters_update.append(
-                opt.apply_gradients(
-                    [(-G.reshape(parameters_derivation[layer_num * 2], layer.weights.shape), layer.weights)]
-                )
+                (-G.reshape(parameters_derivation[layer_num * 2], layer.weights.shape), layer.weights)
             )
             parameters_update.append(
-                opt.apply_gradients(
-                    [(-G.reshape(parameters_derivation[layer_num * 2 + 1], layer.biases.shape), layer.biases)]
-                )
+                (-G.reshape(parameters_derivation[layer_num * 2 + 1], layer.biases.shape), layer.biases)
             )
-        return parameters_update
+        return opt.apply_gradients(parameters_update)
 
     # TODO: describe method of LM
     def fit(self) -> None:
