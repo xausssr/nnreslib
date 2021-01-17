@@ -22,6 +22,7 @@ gradients = tf.gradients
 graph_function = tf.function
 hessians = tf.hessians
 inv = tf.linalg.inv
+losses_mse = tf.compat.v1.losses.mean_squared_error
 matmul = tf.matmul
 max_pool = tf.nn.max_pool
 multiply = tf.multiply
@@ -52,6 +53,7 @@ __all__ = [
     "graph_function",
     "hessians",
     "inv",
+    "losses_mse",
     "matmul",
     "max_pool",
     "multiply",
