@@ -38,7 +38,7 @@ class ForwardGraph:
             x: layers[x] for x in architecture._input_layers
         }  # FIXME: layer is Callable[..., G.Tensor]
 
-        # dict value is G.variable
+        # dict value is G.Variable
         recurrent_layers: Dict[str, G.Tensor] = {}
 
         # layers: Dict with partial defined layers: LayerFunc for layers, and placeholder for InputLayers.
@@ -55,11 +55,11 @@ class ForwardGraph:
                     if input_layer == layer.merge.main_input:
                         continue
                     # check if inputs has recurrent dependencies
-                    # if so, create G.variable(with layer shape and 0 init value) and mark recurrent layer
+                    # if so, create G.Variable(with layer shape and 0 init value) and mark recurrent layer
                     # Use this variable as argument for layer.merge
                     if ForwardGraph._is_recurrent_layer(layer, input_layer, architecture):
                         if input_layer not in recurrent_layers:
-                            variable_input = G.variable(*architecture._layers[input_layer].layer.output_shape)
+                            variable_input = G.Variable(*architecture._layers[input_layer].layer.output_shape)
                             recurrent_layers[input_layer] = variable_input
                         else:
                             variable_input = recurrent_layers[input_layer]
@@ -90,8 +90,8 @@ class ForwardGraph:
         layers: Dict[str, Callable[..., G.Tensor]] = {}
         for layer in architecture.layers:
             if isinstance(layer, TrainableLayer):
-                weights = G.variable(layer.weights)
-                biases = G.variable(layer.biases)
+                weights = G.Variable(layer.weights)
+                biases = G.Variable(layer.biases)
                 self.parameters.append(Parameters(weights, biases))
             layers[layer.name] = LayerFunc.get_layer_func(layer, batch_size=batch_size, weights=weights, biases=biases)
         return layers
