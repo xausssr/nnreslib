@@ -87,7 +87,7 @@ class FitGraph(ABC):
         self,
         train_x_data: np.ndarray,
         train_y_data: np.ndarray,
-        valid_x_data: np.ndarray,
+        valid_x_data: np.ndarray,  # TODO: valid data is optional
         valid_y_data: np.ndarray,
         batch_size: int,
         max_epoch: int = 100,

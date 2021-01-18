@@ -11,7 +11,7 @@ ArgsType = Union[int, G.Tensor]
 
 # pylint:disable=unused-argument
 class LayerFunc(ABC):
-    _subclasses: Dict[Type[Layer], Type[LayerFunc]] = {}
+    _subclasses: Dict[str, Type[LayerFunc]] = {}
 
     def __init__(self, layer: Layer, *args: ArgsType, **kwargs: ArgsType) -> None:
         ...
@@ -32,7 +32,7 @@ class LayerFunc(ABC):
     def get_layer_func(cls, layer: Layer, *args: ArgsType, **kwargs: ArgsType) -> Union[LayerFunc, G.PlaceholderType]:
         if isinstance(layer, InputLayer):
             return G.placeholder(name=layer.name, shape=(kwargs["batch_size"], *layer.output_shape))
-        layer_func = cls._subclasses.get(type(layer), None)
+        layer_func = cls._subclasses.get(type(layer).__name__, None)
         if layer_func:
             return layer_func(layer, *args, **kwargs)
         raise ValueError(f"Unsupported type: {type(layer)}")

@@ -95,6 +95,8 @@ class ForwardGraph:
     def _create_layers(self, batch_size: int, architecture: Architecture) -> Dict[str, Callable[..., G.Tensor]]:
         layers: Dict[str, Callable[..., G.Tensor]] = {}
         for layer in architecture.layers:
+            weights = None
+            biases = None
             if isinstance(layer, TrainableLayer):
                 weights = G.Variable(layer.weights)
                 biases = G.Variable(layer.biases)
