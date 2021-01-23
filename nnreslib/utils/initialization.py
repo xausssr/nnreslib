@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 def _zeros(
     input_shape: Shape, output_shape: Shape, parameter_shape: Shape, data_mean: float = 0.0, data_std: float = 0.0
 ) -> np.ndarray:
-    return np.zeros(shape=parameter_shape.dimension)
+    return np.zeros(parameter_shape.dimension)
 
 
 def _he_normal(
