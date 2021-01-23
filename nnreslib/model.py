@@ -1,5 +1,5 @@
 from os import PathLike
-from typing import Any, Dict, Union, overload
+from typing import Any, Dict, Tuple, Union, overload
 
 import numpy as np
 
@@ -65,7 +65,6 @@ class Model:
         self.fit_graphs: Dict[str, FitGraph] = {}
         self.verbose = verbose
         self.metrics = Metrics()
-        # self.weights: List[int] = []  # numpy.array
 
     def build_graph(self) -> ForwardGraph:
         return ForwardGraph(self.batch_size, self.architecture)
@@ -83,23 +82,21 @@ class Model:
         train_y_data: np.ndarray,
         valid_x_data: np.ndarray,
         valid_y_data: np.ndarray,
-        batch_size: int,
         max_epoch: int = 100,
         min_error: float = 1e-10,
         shuffle: bool = True,
         logging_step: int = 10,
         **kwargs: Any
-    ) -> None:
+    ) -> Tuple[int, float]:
         fit_graph = FitGraph.get_fitter(method)(
             self.batch_size, self.architecture, self.forward_graph
         )  # FIXME: create fitter in get_fitter
         self.fit_graphs[method] = fit_graph
-        fit_graph.fit(
+        return fit_graph.fit(
             train_x_data,
             train_y_data,
             valid_x_data,
             valid_y_data,
-            batch_size,
             max_epoch,
             min_error,
             shuffle,
