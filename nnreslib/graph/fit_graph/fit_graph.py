@@ -17,7 +17,7 @@ _logger = logging.getLogger(__name__)
 class FitGraph(ABC):
     _fitters: Dict[str, Type[FitGraph]] = {}
 
-    __slots__ = ("forward_graph", "outputs", "model_outputs", "session")
+    __slots__ = ("batch_size", "architecture", "forward_graph", "outputs", "model_outputs", "session")
 
     def __init__(
         self,
@@ -25,6 +25,8 @@ class FitGraph(ABC):
         architecture: Architecture,
         forward_graph: ForwardGraph,  # pylint: disable=unused-argument
     ) -> None:
+        self.batch_size = batch_size
+        self.architecture = architecture
         self.forward_graph = forward_graph
         self.outputs = G.squeeze(
             G.concat(
@@ -65,18 +67,24 @@ class FitGraph(ABC):
 
     @staticmethod
     @G.graph_function  # type: ignore
-    def _get_batches(data: G.Dataset) -> np.ndarray:
-        tensor_array = G.TensorArray(size=0, dynamic_size=True)
+    def _get_batches(data: G.Dataset) -> Tuple[np.ndarray, np.ndarray]:
+        tensor_array_x = G.TensorArray(size=0, dynamic_size=True)
+        tensor_array_y = G.TensorArray(size=0, dynamic_size=True)
         i = 0
-        for batch in data:
-            tensor_array = tensor_array.write(i, batch)
+        for batch_x, batch_y in data:
+            tensor_array_x = tensor_array_x.write(i, batch_x)
+            tensor_array_y = tensor_array_y.write(i, batch_y)
             i += 1
-        return tensor_array.stack()  # type: ignore
+        return tensor_array_x.stack(), tensor_array_y.stack()
 
     @abstractmethod
-    def _process_batch(
+    def _process_train_batch(
         self, batch: Tuple[np.ndarray, np.ndarray], **kwargs: Any
     ) -> Tuple[float, np.ndarray, Tuple[Any, ...]]:
+        ...
+
+    @abstractmethod
+    def _process_valid_batch(self, batch: Tuple[np.ndarray, np.ndarray]) -> Tuple[float, np.ndarray]:
         ...
 
     @abstractmethod
@@ -89,15 +97,14 @@ class FitGraph(ABC):
         train_y_data: np.ndarray,
         valid_x_data: np.ndarray,  # TODO: valid data is optional
         valid_y_data: np.ndarray,
-        batch_size: int,
         max_epoch: int = 100,
         min_error: float = 1e-10,
         shuffle: bool = True,
         logging_step: int = 10,
         **kwargs: Any,
-    ) -> None:
-        train_dataset = FitGraph._prepare_batch(train_x_data, train_y_data, batch_size, shuffle)
-        valid_dataset = FitGraph._prepare_batch(valid_x_data, valid_y_data, batch_size, shuffle)
+    ) -> Tuple[int, float]:
+        train_dataset = FitGraph._prepare_batch(train_x_data, train_y_data, self.batch_size, shuffle)
+        valid_dataset = FitGraph._prepare_batch(valid_x_data, valid_y_data, self.batch_size, shuffle)
 
         current_train_loss = 1e21
         epoch = 0
@@ -105,28 +112,32 @@ class FitGraph(ABC):
         while current_train_loss > min_error and epoch < max_epoch:
             epoch += 1
             current_train_loss = 0.0
-            for batch in self.session.run(FitGraph._get_batches(train_dataset)):
-                loss_on_batch, _, method_params = self._process_batch(batch, **kwargs)
+            # TODO: move batch processing to function
+            train_batches = self.session.run(FitGraph._get_batches(train_dataset))
+            for batch in zip(train_batches[0], train_batches[1]):
+                loss_on_batch, _, method_params = self._process_train_batch(batch, **kwargs)
                 self._process_batch_result(method_params, kwargs)
-                # loss_on_batch, predictions, method_params = self._process_batch(batch, **kwargs)
                 current_train_loss += loss_on_batch
-                # train_metrics = calc_metrics(predictions, batch)
+                # TODO: calculate metrics for training data
 
             current_validation_loss = 0.0
-            for batch in self.session.run(FitGraph._get_batches(valid_dataset)):
-                loss_on_batch, _, _ = self._process_batch(batch, **kwargs)
-                # loss_on_batch, predictions, _ = self._process_batch(batch, **kwargs)
+            valid_batches = self.session.run(FitGraph._get_batches(valid_dataset))
+            for batch in zip(valid_batches[0], valid_batches[1]):
+                loss_on_batch, _ = self._process_valid_batch(batch)
                 current_validation_loss += loss_on_batch
-                # valid_metrics = calc_metrics(predictions, batch)
+                # TODO: calculate metrics for validation data
 
             # TODO: plot it
-            current_train_loss = current_train_loss / len(train_x_data)
-            current_validation_loss = current_validation_loss / len(valid_x_data)
+            current_train_loss = current_train_loss / train_batches[0].shape[0]
+            current_validation_loss = current_validation_loss / valid_batches[0].shape[0]
 
             if epoch % logging_step == 0:
                 _logger.info(
-                    "epoch %7d: train error: %.5f; validation error: %.5f}",
+                    "epoch %7d: train error: %.12f; validation error: %.12f",
                     epoch,
                     current_train_loss,
                     current_validation_loss,
                 )
+
+        _logger.warning("Train ended on epoch: %s  with loss: %.12f", epoch, current_train_loss)
+        return epoch, current_train_loss

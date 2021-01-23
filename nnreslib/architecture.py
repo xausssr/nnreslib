@@ -35,7 +35,7 @@ class Architecture:
         "_layers",
         "_input_layers",
         "_output_layers",
-        "_initialized_layers",
+        "_trainable_layers",
         "_architecture",
     )
 
@@ -56,7 +56,7 @@ class Architecture:
         self._layers: Dict[str, LayerInfo] = {}
         self._input_layers: List[str] = []
         self._output_layers: List[str] = []
-        self._initialized_layers: List[str] = []
+        self._trainable_layers: List[str] = []
         self._architecture: Dict[str, Sequence[str]] = {}
         _architecture: ArchitectureType = Architecture._load_architecture(architecture)
         self._parse_layers(_architecture)
@@ -150,7 +150,7 @@ class Architecture:
                 if isinstance(layer, InputLayer):
                     self._input_layers.append(layer.name)
                 elif isinstance(layer, TrainableLayer):
-                    self._initialized_layers.append(layer.name)
+                    self._trainable_layers.append(layer.name)
                 if layer.is_out:
                     self._output_layers.append(layer.name)
 
@@ -208,7 +208,7 @@ class Architecture:
             pre_level = new_pre_level
 
     def initialize(self, data_mean: float = 0.0, data_std: float = 0.0) -> None:
-        for layer_name in self._initialized_layers:
+        for layer_name in self._trainable_layers:
             layer: TrainableLayer = cast(TrainableLayer, self._layers[layer_name].layer)
             layer.set_weights(data_mean, data_std)
             layer.set_biases(data_mean, data_std)
@@ -227,6 +227,11 @@ class Architecture:
     def output_layers(self) -> Generator[Layer, None, None]:
         for output_layer in self._output_layers:
             yield self._layers[output_layer].layer
+
+    @property
+    def trainable(self) -> Generator[TrainableLayer, None, None]:
+        for layer_name in self._trainable_layers:
+            yield cast(TrainableLayer, self._layers[layer_name].layer)
 
     def __iter__(self) -> Generator[Tuple[Layer, Sequence[str]], None, None]:
         for layer, inputs_layers in self._architecture.items():
