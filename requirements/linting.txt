@@ -1,6 +1,5 @@
 flake8
 flake8-builtins
-flake8-import-order
 flake8-polyfill
 
 pylint
@@ -14,5 +13,6 @@ pytest
 coverage
 
 mypy
+data-science-types
 
 black

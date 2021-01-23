@@ -1,0 +1,435 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://github.com/xausssr/nnreslib/blob/master/doc/architecture.schema.json",
+    "title": "Architecture",
+    "description": "Neural Net architecture definition",
+    "definitions": {
+        "LayerName": {
+            "description": "Layer name",
+            "pattern": "^[a-zA-Z0-9_]+$",
+            "type": "string",
+            "minLength": 1
+        },
+        "LayerType": {
+            "description": "Layer type",
+            "enum": [
+                "InputLayer",
+                "ConvolutionLayer",
+                "MaxPoolLayer",
+                "FlattenLayer",
+                "FullyConnectedLayer"
+            ],
+            "type": "string"
+        },
+        "IsOutputLayer": {
+            "description": "Is output layer? # FIXME: fix description",
+            "default": false,
+            "type": "boolean"
+        },
+        "SimpleShape": {
+            "items": {
+                "minimum": 1,
+                "type": "integer"
+            },
+            "minItems": 1,
+            "type": "array"
+        },
+        "FullShape": {
+            "properties": {
+                "shape": {
+                    "items": {
+                        "minimum": 0,
+                        "type": "integer"
+                    },
+                    "minItems": 1,
+                    "type": "array"
+                },
+                "is_null": {
+                    "const": true,
+                    "type": "boolean"
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "shape",
+                "is_null"
+            ],
+            "type": "object"
+        },
+        "Shape": {
+            "oneOf": [
+                {
+                    "$ref": "#/definitions/SimpleShape"
+                },
+                {
+                    "$ref": "#/definitions/FullShape"
+                }
+            ]
+        },
+        "MergeFunctions": {
+            "$comment": "# FIXME: Actualize enum to nnreslib.utils.merge.MergeFunctions after full merge implementation",
+            "enum": [
+                "RESHAPE_TO_MAIN"
+            ],
+            "type": "string"
+        },
+        "Merge": {
+            "properties": {
+                "main_input": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/LayerName"
+                        },
+                        {
+                            "const": ""
+                        }
+                    ],
+                    "default": "",
+                    "type": "string"
+                },
+                "merge_func": {
+                    "$ref": "#/definitions/MergeFunctions",
+                    "default": "RESHAPE_TO_MAIN",
+                    "$comment": "# FIXME: actualize to nnreslib.utils.merge.MergeInputs"
+                }
+            },
+            "type": "object"
+        },
+        "ActivationFunctions": {
+            "description": "Activation function",
+            "enum": [
+                "SIGMOID",
+                "RELU",
+                "TANH",
+                "SOFT_MAX"
+            ],
+            "type": "string"
+        },
+        "StandartInitializer": {
+            "enum": [
+                "ZEROS",
+                "HE_NORMAL",
+                "HAYKIN"
+            ],
+            "type": "string"
+        },
+        "Initialization": {
+            "description": "# FIXME: fix description",
+            "$comment": "# TODO: support custom initializers",
+            "properties": {
+                "weigths_initializer": {
+                    "$ref": "#/definitions/StandartInitializer",
+                    "default": "HE_NORMAL"
+                },
+                "biases_initializer": {
+                    "$ref": "#/definitions/StandartInitializer",
+                    "default": "ZEROS"
+                }
+            },
+            "additionalProperties": false,
+            "type": "object"
+        },
+        "InputLayer": {
+            "description": "Properties specific to InputLayer",
+            "properties": {
+                "name": {
+                    "$ref": "#/definitions/LayerName"
+                },
+                "type": {
+                    "$ref": "#/definitions/LayerType",
+                    "const": "InputLayer"
+                },
+                "input_shape": {
+                    "description": "Shape of input data",
+                    "$ref": "#/definitions/Shape"
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "input_shape"
+            ]
+        },
+        "ConvolutionLayer": {
+            "description": "Properties specific to ConvolutionLayer",
+            "properties": {
+                "name": {
+                    "$ref": "#/definitions/LayerName"
+                },
+                "type": {
+                    "$ref": "#/definitions/LayerType",
+                    "const": "ConvolutionLayer"
+                },
+                "kernel": {
+                    "description": "Shape of kernel",
+                    "$ref": "#/definitions/Shape"
+                },
+                "stride": {
+                    "description": "Shape of stride",
+                    "$ref": "#/definitions/Shape"
+                },
+                "filters": {
+                    "description": "Filters count",
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "pad": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/Shape"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null
+                },
+                "merge": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/Merge"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null
+                },
+                "activation": {
+                    "$ref": "#/definitions/ActivationFunctions",
+                    "default": "RELU"
+                },
+                "initializer": {
+                    "$ref": "#/definitions/Initialization"
+                },
+                "is_out": {
+                    "$ref": "#/definitions/IsOutputLayer"
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "kernel",
+                "stride",
+                "filters"
+            ]
+        },
+        "MaxPoolLayer": {
+            "description": "Properties specific to MaxPoolLayer",
+            "properties": {
+                "name": {
+                    "$ref": "#/definitions/LayerName"
+                },
+                "type": {
+                    "$ref": "#/definitions/LayerType",
+                    "const": "MaxPoolLayer"
+                },
+                "kernel": {
+                    "description": "Shape of kernel",
+                    "$ref": "#/definitions/Shape"
+                },
+                "stride": {
+                    "description": "Shape of stride",
+                    "$ref": "#/definitions/Shape"
+                },
+                "merge": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/Merge"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null
+                },
+                "is_out": {
+                    "$ref": "#/definitions/IsOutputLayer"
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "kernel",
+                "stride"
+            ]
+        },
+        "FlattenLayer": {
+            "description": "Properties specific to FlattenLayer",
+            "properties": {
+                "name": {
+                    "$ref": "#/definitions/LayerName"
+                },
+                "type": {
+                    "$ref": "#/definitions/LayerType",
+                    "const": "FlattenLayer"
+                },
+                "merge": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/Merge"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null
+                },
+                "is_out": {
+                    "$ref": "#/definitions/IsOutputLayer"
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "type"
+            ]
+        },
+        "FullyConnectedLayer": {
+            "description": "Properties specific to FullyConnectedLayer",
+            "properties": {
+                "name": {
+                    "$ref": "#/definitions/LayerName"
+                },
+                "type": {
+                    "$ref": "#/definitions/LayerType",
+                    "const": "FullyConnectedLayer"
+                },
+                "neurons": {
+                    "description": "Neurons count",
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "merge": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/Merge"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null
+                },
+                "activation": {
+                    "$ref": "#/definitions/ActivationFunctions",
+                    "default": "SIGMOID"
+                },
+                "initializer": {
+                    "$ref": "#/definitions/Initialization"
+                },
+                "is_out": {
+                    "$ref": "#/definitions/IsOutputLayer"
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "type",
+                "neurons"
+            ]
+        },
+        "Layer": {
+            "description": "Properties specific to a unique layer.",
+            "oneOf": [
+                {
+                    "$ref": "#/definitions/InputLayer"
+                },
+                {
+                    "$ref": "#/definitions/ConvolutionLayer"
+                },
+                {
+                    "$ref": "#/definitions/MaxPoolLayer"
+                },
+                {
+                    "$ref": "#/definitions/FlattenLayer"
+                },
+                {
+                    "$ref": "#/definitions/FullyConnectedLayer"
+                }
+            ],
+            "required": [
+                "name",
+                "type"
+            ],
+            "type": "object"
+        },
+        "LayersList": {
+            "items": {
+                "$ref": "#/definitions/Layer"
+            },
+            "minItems": 2,
+            "type": "array"
+        },
+        "LayersWithCustomInputsDefinition": {
+            "properties": {
+                "inputs": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/LayerName"
+                        },
+                        {
+                            "items": {
+                                "$ref": "#/definitions/LayerName"
+                            },
+                            "minItems": 1,
+                            "type": "array"
+                        }
+                    ]
+                },
+                "layers": {
+                    "oneOf": [
+                        {
+                            "$ref": "#/definitions/Layer"
+                        },
+                        {
+                            "$ref": "#/definitions/LayersList"
+                        }
+                    ]
+                }
+            },
+            "required": [
+                "inputs",
+                "layers"
+            ],
+            "additionalProperties": false,
+            "type": "object"
+        },
+        "LayersWithCustomInputs": {
+            "items": {
+                "$ref": "#/definitions/LayersWithCustomInputsDefinition"
+            },
+            "minItems": 1,
+            "type": "array"
+        },
+        "Architecture": {
+            "description": "A list of neural network layers and the properties specific to each.",
+            "items": {
+                "oneOf": [
+                    {
+                        "$ref": "#/definitions/Layer"
+                    },
+                    {
+                        "$ref": "#/definitions/LayersList"
+                    },
+                    {
+                        "$ref": "#/definitions/LayersWithCustomInputs"
+                    }
+                ]
+            },
+            "additionalItems": false,
+            "minItems": 2,
+            "type": "array"
+        }
+    },
+    "oneOf": [
+        {
+            "properties": {
+                "architecture": {
+                    "$ref": "#/definitions/Architecture"
+                }
+            },
+            "required": [
+                "architecture"
+            ]
+        }
+    ]
+}
