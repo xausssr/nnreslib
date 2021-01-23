@@ -1,13 +1,16 @@
 from os import PathLike
-from typing import Union, overload
+from typing import Any, Dict, Tuple, Union, overload
+
+import numpy as np
 
 from .architecture import Architecture, ArchitectureType
 from .graph import ForwardGraph
+from .graph.fit_graph.fit_graph import FitGraph  # FIXME: move FitGraph to above module
 from .utils.metrics import Metrics
 
 
 class Model:
-    __slots__ = ("batch_size", "architecture", "forward_graph", "verbose", "metrics")
+    __slots__ = ("batch_size", "architecture", "forward_graph", "fit_graphs", "verbose", "metrics")
 
     @overload
     def __init__(
@@ -59,9 +62,9 @@ class Model:
         self.architecture = Architecture(architecture)
         self.architecture.initialize(data_mean, data_std)
         self.forward_graph = self.build_graph()
+        self.fit_graphs: Dict[str, FitGraph] = {}
         self.verbose = verbose
         self.metrics = Metrics()
-        # self.weights: List[int] = []  # numpy.array
 
     def build_graph(self) -> ForwardGraph:
         return ForwardGraph(self.batch_size, self.architecture)
@@ -72,11 +75,34 @@ class Model:
     def init_graph(self) -> None:
         ...
 
-    def train(self) -> None:
-        # add part to computation graph for training
-        # if visualisation - get callbacks or plot results with matplotlib
-        # async
-        ...
+    def train(
+        self,
+        method: str,
+        train_x_data: np.ndarray,
+        train_y_data: np.ndarray,
+        valid_x_data: np.ndarray,
+        valid_y_data: np.ndarray,
+        max_epoch: int = 100,
+        min_error: float = 1e-10,
+        shuffle: bool = True,
+        logging_step: int = 10,
+        **kwargs: Any
+    ) -> Tuple[int, float]:
+        fit_graph = FitGraph.get_fitter(method)(
+            self.batch_size, self.architecture, self.forward_graph
+        )  # FIXME: create fitter in get_fitter
+        self.fit_graphs[method] = fit_graph
+        return fit_graph.fit(
+            train_x_data,
+            train_y_data,
+            valid_x_data,
+            valid_y_data,
+            max_epoch,
+            min_error,
+            shuffle,
+            logging_step,
+            **kwargs
+        )
 
     def predict(self) -> None:
         # async
