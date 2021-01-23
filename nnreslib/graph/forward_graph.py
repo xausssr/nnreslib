@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable, Dict, List, NamedTuple, Union
+from typing import Callable, Dict, List, NamedTuple, Tuple, Union
+
+import numpy as np
 
 from .layers import LayerFunc
 from ..architecture import Architecture
@@ -18,39 +20,33 @@ Parameters = NamedTuple("Parameters", [("weights", G.VariableType), ("biases", G
 class ForwardGraph:
     __slots__ = (
         # "batch_size",
-        # "input_data",
-        "input_labels",
         "layers",
         "parameters",
-        # "output",
+        "inputs",
+        "outputs",
+        "session",
+        "_parameters_index"
         # "vector_error",
         # "train_loss",
     )
 
     def __init__(self, batch_size: int, architecture: Architecture) -> None:
         # self.batch_size = batch_size
+        self.session = G.Session()
+        self._parameters_index: Dict[str, int] = {}
+        self.parameters = self._get_parameters_vector(architecture)
 
-        # XXX: This exist in self.layers. It's really need?
-        # self.input_data = {
-        #     x.name: G.placeholder(name=x.name, shape=(batch_size, *x.output_shape)) for x in architecture.input_layers
-        # }
-
-        # XXX: Is it calculated on output layer's shapes??
-        self.input_labels = [
-            G.placeholder(name=x.name, shape=(batch_size, *x.output_shape)) for x in architecture.output_layers
-        ]  # TODO: may be output_data???
-
-        self.parameters: List[Parameters] = []
-
-        _logger.debug("Start building model graph")  # TODO: debug or info?
+        _logger.info("Start building model graph")
         layers = self._create_layers(batch_size, architecture)
 
         # Move placeholders for input layers to graph layers dict
         self.layers: Dict[str, Union[Callable[..., G.Tensor], G.Tensor]] = {
             x: layers[x] for x in architecture._input_layers
-        }  # TODO: layer is Callable or Tensor?
+        }  # FIXME: layer is Callable[..., G.Tensor]
 
-        # dict value is G.variable
+        self.inputs = tuple([self.layers[x] for x in architecture._input_layers])
+
+        # dict value is G.Variable
         recurrent_layers: Dict[str, G.Tensor] = {}
 
         # layers: Dict with partial defined layers: LayerFunc for layers, and placeholder for InputLayers.
@@ -67,11 +63,11 @@ class ForwardGraph:
                     if input_layer == layer.merge.main_input:
                         continue
                     # check if inputs has recurrent dependencies
-                    # if so, create G.variable(with layer shape and 0 init value) and mark recurrent layer
+                    # if so, create G.Variable(with layer shape and 0 init value) and mark recurrent layer
                     # Use this variable as argument for layer.merge
                     if ForwardGraph._is_recurrent_layer(layer, input_layer, architecture):
                         if input_layer not in recurrent_layers:
-                            variable_input = G.variable(*architecture._layers[input_layer].layer.output_shape)
+                            variable_input = G.Variable(*architecture._layers[input_layer].layer.output_shape)
                             recurrent_layers[input_layer] = variable_input
                         else:
                             variable_input = recurrent_layers[input_layer]
@@ -91,11 +87,35 @@ class ForwardGraph:
                 self.layers[layer.name] = recurrent_layers[layer.name].assign(self.layers[layer.name])
                 del recurrent_layers[layer.name]
 
-        # # tf.Varibale([w+b+w1+b1])
+        self.outputs = tuple([self.layers[x] for x in architecture._output_layers])
 
-        # self.output = tf.squeeze(current_node)
-        # self.vector_error = self.input_labels - self.settings.outputs
-        # self.train_loss = tf.reduce_mean(tf.square(self.vector_error), name="Train_loss")
+    def _get_parameters_vector(self, architecture: Architecture) -> G.VariableType:
+        parameters_flatten: List[np.ndarray] = []
+        layer: TrainableLayer
+        index = 0
+        for layer in architecture.trainable:
+            self._parameters_index[layer.name] = index
+            parameters_flatten.extend((layer.weights.flatten(), layer.biases.flatten()))
+            index += np.prod(parameters_flatten[-2].shape) + np.prod(  # type: ignore[call-overload]
+                parameters_flatten[-1].shape
+            )
+        return G.Variable(np.hstack(parameters_flatten))
+
+    def _get_parameters_from_vector(self, layer: TrainableLayer) -> Tuple[G.Tensor, G.Tensor]:
+        layer_index = self._parameters_index[layer.name]
+        weights = G.reshape(
+            self.parameters[layer_index : layer_index + layer.weights_shape.prod], layer.weights_shape.dimension
+        )
+        biases = G.reshape(
+            self.parameters[
+                layer_index
+                + layer.weights_shape.prod : layer_index
+                + layer.weights_shape.prod
+                + layer.biases_shape.prod
+            ],
+            layer.biases_shape.dimension,
+        )
+        return weights, biases
 
     # pylint:disable=protected-access
     @staticmethod
@@ -107,10 +127,10 @@ class ForwardGraph:
     def _create_layers(self, batch_size: int, architecture: Architecture) -> Dict[str, Callable[..., G.Tensor]]:
         layers: Dict[str, Callable[..., G.Tensor]] = {}
         for layer in architecture.layers:
+            weights = None
+            biases = None
             if isinstance(layer, TrainableLayer):
-                weights = G.variable(layer.weights)
-                biases = G.variable(layer.biases)
-                self.parameters.append(Parameters(weights, biases))
+                weights, biases = self._get_parameters_from_vector(layer)
             layers[layer.name] = LayerFunc.get_layer_func(layer, batch_size=batch_size, weights=weights, biases=biases)
         return layers
 
