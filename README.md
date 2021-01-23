@@ -16,7 +16,7 @@
 [github workflow release img]: https://github.com/xausssr/nnreslib/workflows/Release/badge.svg
 [github workflow release]: https://github.com/xausssr/nnreslib/actions?query=workflow%3ARelease
 
-[codecov img]: https://codecov.io/gh/xausssr/nnreslib/branch/master/graph/badge.svg?token=JFA88DQ3T4
+[codecov img]: https://codecov.io/gh/xausssr/nnreslib/branch/main/graph/badge.svg?token=JFA88DQ3T4
 [codecov]: https://codecov.io/gh/xausssr/nnreslib
 
 [code style img]: https://img.shields.io/badge/code%20style-black-000000.svg
