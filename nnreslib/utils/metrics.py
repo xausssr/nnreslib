@@ -140,17 +140,11 @@ class Metrics:
 
     def _conf_matrix(self, data: Tuple[np.ndarray, np.ndarray], treshold: float = 0.5) -> dict:
         classification_metrics = {"TP": 0.0, "FP": 0.0, "FN": 0.0, "TN": 0.0}
-        for label in range(len(data[0])):
-            if data[0][label] == int(data[1][label] > treshold):
-                if data[0][label] == 0:
-                    classification_metrics["TN"] += 1.0
-                else:
-                    classification_metrics["TP"] += 1.0
-            else:
-                if data[0][label] == 0:
-                    classification_metrics["FN"] += 1.0
-                else:
-                    classification_metrics["FP"] += 1.0
+        diff = data[0] - (data[1] > treshold)
+        classification_metrics["TP"] += len(np.where(data[0] == 1)[0]) - np.sum(diff[np.where(data[0] == 1)[0]])
+        classification_metrics["FP"] += np.sum(diff[np.where(data[0] == 1)[0]])
+        classification_metrics["FN"] += len(np.where(diff < 0)[0])
+        classification_metrics["TN"] += len(np.where(diff[np.where(data[0] == 0)[0]] == 0)[0])
         return classification_metrics
 
     def confusion_data(
@@ -238,8 +232,8 @@ class Metrics:
         temp_roc_value = 0
         auc = 0
 
-        for pos in range(len(sorted_labels)):
-            if sorted_labels[pos][1] == 1:
+        for label in sorted_labels:
+            if label[0] == 1:
                 temp_roc_value += 1.0 / ones
             else:
                 roc.append(temp_roc_value)
@@ -281,7 +275,7 @@ class Metrics:
                 score_beta=score_beta,
                 treshold=treshold,
             )
-            for key in temp_result.keys():
+            for key in temp_result:
                 classification_metrics[f"Class {class_idx}"][key] = temp_result[key]
 
         classification_metrics["average"] = {}
@@ -290,11 +284,7 @@ class Metrics:
             score_beta=score_beta,
             treshold=treshold,
         )
-        for key in temp_result.keys():
+        for key in temp_result:
             classification_metrics["average"][key] = temp_result[key]
 
         return classification_metrics
-
-
-# classification_metrics(data=(y, y_hat), ...) -> y.shape[1] == 1: confusion_data; multimodal_confusion_data
-# len(y.shape) != 2: error; y.shape != y_hat.shape: error; treshold in (0,1)
