@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable, Dict, List, NamedTuple, Union
+from typing import Callable, Dict, List, NamedTuple, Tuple, Union
+
+import numpy as np
 
 from .layers import LayerFunc
 from ..architecture import Architecture
@@ -22,7 +24,8 @@ class ForwardGraph:
         "parameters",
         "inputs",
         "outputs",
-        "session"
+        "session",
+        "_parameters_index"
         # "vector_error",
         # "train_loss",
     )
@@ -30,7 +33,8 @@ class ForwardGraph:
     def __init__(self, batch_size: int, architecture: Architecture) -> None:
         # self.batch_size = batch_size
         self.session = G.Session()
-        self.parameters: List[Parameters] = []
+        self._parameters_index: Dict[str, int] = {}
+        self.parameters = self._get_parameters_vector(architecture)
 
         _logger.info("Start building model graph")
         layers = self._create_layers(batch_size, architecture)
@@ -85,6 +89,34 @@ class ForwardGraph:
 
         self.outputs = tuple([self.layers[x] for x in architecture._output_layers])
 
+    def _get_parameters_vector(self, architecture: Architecture) -> G.VariableType:
+        parameters_flatten: List[np.ndarray] = []
+        layer: TrainableLayer
+        index = 0
+        for layer in architecture.trainable:
+            self._parameters_index[layer.name] = index
+            parameters_flatten.extend((layer.weights.flatten(), layer.biases.flatten()))
+            index += np.prod(parameters_flatten[-2].shape) + np.prod(  # type: ignore[call-overload]
+                parameters_flatten[-1].shape
+            )
+        return G.Variable(np.hstack(parameters_flatten))
+
+    def _get_parameters_from_vector(self, layer: TrainableLayer) -> Tuple[G.Tensor, G.Tensor]:
+        layer_index = self._parameters_index[layer.name]
+        weights = G.reshape(
+            self.parameters[layer_index : layer_index + layer.weights_shape.prod], layer.weights_shape.dimension
+        )
+        biases = G.reshape(
+            self.parameters[
+                layer_index
+                + layer.weights_shape.prod : layer_index
+                + layer.weights_shape.prod
+                + layer.biases_shape.prod
+            ],
+            layer.biases_shape.dimension,
+        )
+        return weights, biases
+
     # pylint:disable=protected-access
     @staticmethod
     def _is_recurrent_layer(layer: Layer, input_layer: str, architecture: Architecture) -> bool:
@@ -98,9 +130,7 @@ class ForwardGraph:
             weights = None
             biases = None
             if isinstance(layer, TrainableLayer):
-                weights = G.Variable(layer.weights)
-                biases = G.Variable(layer.biases)
-                self.parameters.append(Parameters(weights, biases))
+                weights, biases = self._get_parameters_from_vector(layer)
             layers[layer.name] = LayerFunc.get_layer_func(layer, batch_size=batch_size, weights=weights, biases=biases)
         return layers
 
