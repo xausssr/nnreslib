@@ -84,7 +84,7 @@ class Architecture:
 
     @staticmethod
     def _load_architecture(architecture: Union[ArchitectureType, str, PathLike]) -> ArchitectureType:
-        if not isinstance(architecture, (str, PathLike)):  # type: ignore
+        if not isinstance(architecture, (str, PathLike)):
             return architecture
 
         arch_path = Path(architecture)
