@@ -2,4 +2,4 @@
 -r ./main.txt
 -r ./extra.txt
 
-pre-commit
+pre-commit==2.9.2
