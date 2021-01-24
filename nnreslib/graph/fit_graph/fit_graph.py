@@ -1,20 +1,20 @@
 from __future__ import annotations
 
 import logging
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Dict, Tuple, Type
+from abc import abstractmethod
+from typing import Any, Callable, Dict, Tuple, Type
+
+import numpy as np
 
 from .. import ForwardGraph
+from ..graph import Graph
 from ...architecture import Architecture
 from ...backend import graph as G
-
-if TYPE_CHECKING:
-    import numpy as np
 
 _logger = logging.getLogger(__name__)
 
 
-class FitGraph(ABC):
+class FitGraph(Graph):
     _fitters: Dict[str, Type[FitGraph]] = {}
 
     __slots__ = ("batch_size", "architecture", "forward_graph", "outputs", "model_outputs", "session")
@@ -56,27 +56,6 @@ class FitGraph(ABC):
             return fitter
         raise ValueError(f"Unsupported fit type: {fit_type}")
 
-    @staticmethod
-    def _prepare_batch(x_data: np.ndarray, y_data: np.ndarray, batch_size: int, shuffle: bool = True) -> G.Dataset:
-        x_dataset = G.Dataset.from_tensor_slices(x_data)
-        y_dataset = G.Dataset.from_tensor_slices(y_data)
-        dataset = G.Dataset.zip((x_dataset, y_dataset))
-        if shuffle:
-            dataset = dataset.shuffle(dataset.cardinality(), reshuffle_each_iteration=True)
-        return dataset.batch(batch_size, drop_remainder=True)
-
-    @staticmethod
-    @G.graph_function  # type: ignore
-    def _get_batches(data: G.Dataset) -> Tuple[np.ndarray, np.ndarray]:
-        tensor_array_x = G.TensorArray(size=0, dynamic_size=True)
-        tensor_array_y = G.TensorArray(size=0, dynamic_size=True)
-        i = 0
-        for batch_x, batch_y in data:
-            tensor_array_x = tensor_array_x.write(i, batch_x)
-            tensor_array_y = tensor_array_y.write(i, batch_y)
-            i += 1
-        return tensor_array_x.stack(), tensor_array_y.stack()
-
     @abstractmethod
     def _process_train_batch(
         self, batch: Tuple[np.ndarray, np.ndarray], **kwargs: Any
@@ -103,8 +82,8 @@ class FitGraph(ABC):
         logging_step: int = 10,
         **kwargs: Any,
     ) -> Tuple[int, float]:
-        train_dataset = FitGraph._prepare_batch(train_x_data, train_y_data, self.batch_size, shuffle)
-        valid_dataset = FitGraph._prepare_batch(valid_x_data, valid_y_data, self.batch_size, shuffle)
+        train_dataset = self._prepare_batch(train_x_data, train_y_data, shuffle)
+        valid_dataset = self._prepare_batch(valid_x_data, valid_y_data, shuffle)
 
         current_train_loss = 1e21
         epoch = 0
@@ -113,7 +92,7 @@ class FitGraph(ABC):
             epoch += 1
             current_train_loss = 0.0
             # TODO: move batch processing to function
-            train_batches = self.session.run(FitGraph._get_batches(train_dataset))
+            train_batches = self.session.run(self._get_batches(train_dataset))
             for batch in zip(train_batches[0], train_batches[1]):
                 loss_on_batch, _, method_params = self._process_train_batch(batch, **kwargs)
                 self._process_batch_result(method_params, kwargs)
@@ -121,7 +100,7 @@ class FitGraph(ABC):
                 # TODO: calculate metrics for training data
 
             current_validation_loss = 0.0
-            valid_batches = self.session.run(FitGraph._get_batches(valid_dataset))
+            valid_batches = self.session.run(self._get_batches(valid_dataset))
             for batch in zip(valid_batches[0], valid_batches[1]):
                 loss_on_batch, _ = self._process_valid_batch(batch)
                 current_validation_loss += loss_on_batch
