@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable, Dict, List, NamedTuple, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
+from .graph import Graph
 from .layers import LayerFunc
 from ..architecture import Architecture
 from ..backend import graph as G
@@ -12,14 +13,11 @@ from ..layers import Layer, TrainableLayer
 
 _logger = logging.getLogger(__name__)
 
-Parameters = NamedTuple("Parameters", [("weights", G.VariableType), ("biases", G.VariableType)])
-
 # FIXME: Global fix G(TF) type annotations
 
 
-class ForwardGraph:
+class ForwardGraph(Graph):
     __slots__ = (
-        # "batch_size",
         "layers",
         "parameters",
         "inputs",
@@ -31,13 +29,12 @@ class ForwardGraph:
     )
 
     def __init__(self, batch_size: int, architecture: Architecture) -> None:
-        # self.batch_size = batch_size
-        self.session = G.Session()
+        super().__init__(batch_size)
         self._parameters_index: Dict[str, int] = {}
         self.parameters = self._get_parameters_vector(architecture)
 
         _logger.info("Start building model graph")
-        layers = self._create_layers(batch_size, architecture)
+        layers = self._create_layers(self.batch_size, architecture)
 
         # Move placeholders for input layers to graph layers dict
         self.layers: Dict[str, Union[Callable[..., G.Tensor], G.Tensor]] = {
@@ -88,6 +85,7 @@ class ForwardGraph:
                 del recurrent_layers[layer.name]
 
         self.outputs = tuple([self.layers[x] for x in architecture._output_layers])
+        self.session.run(G.global_variables_initializer())
 
     def _get_parameters_vector(self, architecture: Architecture) -> G.VariableType:
         parameters_flatten: List[np.ndarray] = []
@@ -136,3 +134,22 @@ class ForwardGraph:
 
     def describe(self) -> None:
         ...
+
+    def predict_proba(self, x_data: np.ndarray) -> List[np.ndarray]:
+        dataset = self._prepare_batch(x_data, shuffle=False)
+        predict_batches, _ = self.session.run(self._get_batches(dataset, train=False))
+        predict_result = list(self.session.run(self.outputs, feed_dict={self.inputs: predict_batches[0]}))
+        for batch in predict_batches[1:]:
+            for pred_idx, (pred_mem, pred_current) in enumerate(
+                zip(predict_result, self.session.run(self.outputs, feed_dict={self.inputs: batch}))
+            ):
+                predict_result[pred_idx] = np.vstack([pred_mem, pred_current])
+        return predict_result
+
+    def predict(self, x_data: np.ndarray, thresholds: Optional[List[float]] = None) -> List[np.ndarray]:
+        predict_results = self.predict_proba(x_data)
+        if thresholds is None:
+            thresholds = [0.5 for idx in range(len(predict_results))]
+        for out_idx, (predict_result, threshold) in enumerate(zip(predict_results, thresholds)):
+            predict_results[out_idx] = (predict_result > threshold).astype(int)
+        return predict_results

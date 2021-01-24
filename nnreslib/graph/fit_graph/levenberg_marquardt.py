@@ -23,7 +23,8 @@ class LevenbergMarquardt(FitGraph):
 
     def __init__(self, batch_size: int, architecture: Architecture, forward_graph: ForwardGraph) -> None:
         super().__init__(batch_size, architecture, forward_graph)
-
+        # TODO fix issue: split graphs
+        self.session = forward_graph.session
         # self.train_loss = G.losses_mse(self.outputs, self.model_outputs)
         self.train_loss = G.reduce_mean(G.square(self.outputs - self.model_outputs))
 
@@ -118,6 +119,7 @@ class LevenbergMarquardt(FitGraph):
 
         return feed_dict
 
+    # FIXME input data is List[np.ndarray] or np.ndarray
     def _process_train_batch(
         self, batch: Tuple[np.ndarray, np.ndarray], **kwargs: Any
     ) -> Tuple[float, np.ndarray, Tuple[Any, ...]]:
