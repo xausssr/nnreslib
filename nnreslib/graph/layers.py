@@ -54,7 +54,7 @@ class ConvolutionFunc(LayerFunc):
 
     def __call__(self, layer_input: G.Tensor) -> G.Tensor:
         pad = self.layer.pad / 2
-        return self.layer.activation.value(
+        return self.layer.activation.func(
             G.conv2d(  # TODO: check layer dimension, and choice the right convolution
                 layer_input,
                 self.weights,

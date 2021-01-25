@@ -4,15 +4,11 @@ import collections.abc as ca
 import functools
 import operator
 from enum import Enum, unique
-from typing import Generator, List, Optional, Sequence, Tuple, Union, overload
+from typing import Generator, Optional, Sequence, Tuple, Union, overload
 
-from typing_extensions import TypedDict
-
-from ..backend.activation_functions import relu, sigmoid, softmax, tanh
-
-SerializedSimpleShapeType = List[int]
-SerializedFullShapeType = TypedDict("SerializedFullShapeType", {"shape": SerializedSimpleShapeType, "is_null": bool})
-SerializedShapeType = Union[SerializedSimpleShapeType, SerializedFullShapeType]
+from ..backend import graph as G
+from ..backend.activation_functions import relu, sigmoid, softmax, tanh  # TODO: move to graph
+from ..utils.serialized_types import SerializedShapeType
 
 
 @unique
@@ -21,6 +17,10 @@ class ActivationFunctions(Enum):
     RELU = functools.partial(relu)
     TANH = functools.partial(tanh)
     SOFT_MAX = functools.partial(softmax)
+
+    @property
+    def func(self) -> G.Tensor:
+        return self.value.func  # pylint:disable=no-member
 
 
 class Shape:

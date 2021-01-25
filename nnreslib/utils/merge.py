@@ -4,15 +4,9 @@ import functools
 from enum import Enum, unique
 from typing import Callable, Optional, Sequence, Union
 
-from typing_extensions import TypedDict
-
 from .types import Shape
 from ..backend import graph as G
-
-SerializedMergeFunctionsType = str
-SerializedMergeInputsType = TypedDict(
-    "SerializedMergeInputsType", {"main_input": str, "merge_func": SerializedMergeFunctionsType}
-)
+from ..utils.serialized_types import SerializedMergeInputsType
 
 
 def _data_merge_not_implemented(

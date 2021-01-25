@@ -1,8 +1,9 @@
 import math
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from .base_layer import Layer
 from ..utils.merge import MergeInputs
+from ..utils.serialized_types import SerializedLayerType
 from ..utils.types import Shape
 
 
@@ -41,8 +42,7 @@ class BaseConvLayer(Layer):
             last_dim,
         )
 
-    # TODO: fix return type annotation
-    def serialize(self) -> Dict[str, Any]:
+    def serialize(self) -> SerializedLayerType:
         serialized = super().serialize()
         serialized["kernel"] = self.kernel.serialize()
         serialized["stride"] = self.stride.serialize()

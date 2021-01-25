@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from .base_conv_layer import BaseConvLayer
 from .base_layer import Layer
 from .trainable_layer import TrainableLayer
 from ..utils.initialization import Initialization
 from ..utils.merge import MergeInputs
+from ..utils.serialized_types import SerializedLayerType
 from ..utils.types import ActivationFunctions, Shape
 
 
@@ -59,8 +60,7 @@ class ConvolutionLayer(BaseConvLayer, TrainableLayer):
             *((1,) * len(self.kernel)), 1, self.filters
         )  # TODO: # Make third dim equal to self.input_shape[-1]
 
-    # TODO: fix return type annotation
-    def serialize(self) -> Dict[str, Any]:
+    def serialize(self) -> SerializedLayerType:
         serialized = super().serialize()
         serialized["filters"] = self.filters
         serialized["pad"] = self.pad.serialize()
@@ -123,8 +123,7 @@ class FullyConnectedLayer(TrainableLayer):
     def biases_shape(self) -> Shape:
         return Shape(1, self.neurons)
 
-    # TODO: fix return type annotation
-    def serialize(self) -> Dict[str, Any]:
+    def serialize(self) -> SerializedLayerType:
         serialized = super().serialize()
         serialized["neurons"] = self.neurons
         return serialized

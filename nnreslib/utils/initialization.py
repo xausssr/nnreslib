@@ -7,22 +7,12 @@ from enum import Enum
 from typing import TYPE_CHECKING, Callable, Union
 
 import numpy as np
-from typing_extensions import TypedDict
 
 from .types import Shape
+from ..utils.serialized_types import SerializedInitializationType, SerializedInitializeFunctionType
 
 if TYPE_CHECKING:
     from ..layers import TrainableLayer
-
-SerializedStandartInitializerType = str
-SerializedCustomInitializerType = TypedDict(
-    "SerializedCustomInitializerType", {"function": str}
-)  # XXX: support serialize CustomInitializer
-SerializedInitializeFunctionType = Union[SerializedStandartInitializerType, SerializedCustomInitializerType]
-SerializedInitializationType = TypedDict(
-    "SerializedInitializationType",
-    {"weights_initializer": SerializedInitializeFunctionType, "biases_initializer": SerializedInitializeFunctionType},
-)
 
 
 # pylint:disable=unused-argument
@@ -64,7 +54,7 @@ class StandartInitializer(Enum):
 
     @property
     def func(self) -> InitializerType:
-        return self.value.func  # type: ignore # pylint:disable=no-member
+        return self.value.func  # pylint:disable=no-member
 
 
 InitializerType = Callable[[Shape, Shape, Shape, float, float], np.ndarray]

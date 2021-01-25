@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from ..utils.merge import MergeInputs
+from ..utils.serialized_types import SerializedLayerType
 from ..utils.types import Shape
 
 
@@ -37,6 +38,8 @@ class Layer(ABC):
     def _check_input_shape(value: Shape) -> bool:
         return True
 
+    # pylint:enable=unused-argument
+
     @abstractmethod
     def _set_output_shape(self) -> None:
         self._output_shape = None
@@ -55,11 +58,7 @@ class Layer(ABC):
     def neurons_count(self) -> int:
         return 0
 
-    def to_json(self) -> str:
-        ...
-
-    # TODO: fix return type annotation
-    def serialize(self) -> Dict[str, Any]:
+    def serialize(self) -> SerializedLayerType:
         return dict(
             name=self.name,
             type=self.__class__.__name__,
