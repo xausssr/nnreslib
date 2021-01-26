@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from abc import ABC
 from typing import Optional, Tuple
 
@@ -12,10 +10,7 @@ class Graph(ABC):
 
     __slots__ = ("batch_size", "session", "__weakref__")
 
-    def __init__(
-        self,
-        batch_size: int,
-    ) -> None:
+    def __init__(self, batch_size: int) -> None:
         self.batch_size = batch_size
         self.session = G.Session()
 

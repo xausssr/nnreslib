@@ -104,10 +104,12 @@ class Model:
             **kwargs
         )
 
-    def predict(self, x_data: np.ndarray, thresholds: Optional[List[float]] = None) -> List[np.ndarray]:
+    def predict(
+        self, x_data: np.ndarray, thresholds: Optional[Union[float, List[float]]] = 0.5
+    ) -> Union[np.ndarray, List[np.ndarray]]:
         return self.forward_graph.predict(x_data)
 
-    def predict_proba(self, x_data: np.ndarray) -> List[np.ndarray]:
+    def predict_proba(self, x_data: np.ndarray) -> Union[np.ndarray, List[np.ndarray]]:
         return self.forward_graph.predict_proba(x_data)
 
     def get_parametrs(self) -> None:

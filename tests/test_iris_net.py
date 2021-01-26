@@ -38,8 +38,6 @@ def test_iris_net():
     ]
 
     model = Model(150, architecture)
-    print(model.predict(x_train)[0][0])
-    print(model.predict_proba(x_train)[0][0])
     epoch, loss = model.train(
         "LevenbergMarquardt",
         x_train,
@@ -54,6 +52,6 @@ def test_iris_net():
         regularisation_factor_increase=10.0,
     )
 
-    assert epoch == 20
-    assert loss < 0.02914
-    assert np.array_equal(model.predict(x_train)[0][0], np.array([0, 0, 1]))
+    assert epoch == 24
+    assert loss < 0.033
+    assert np.array_equal(model.predict(x_train)[0], np.array([0, 0, 1]))
