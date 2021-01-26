@@ -17,7 +17,7 @@ _logger = logging.getLogger(__name__)
 class FitGraph(Graph):
     _fitters: Dict[str, Type[FitGraph]] = {}
 
-    __slots__ = ("batch_size", "architecture", "forward_graph", "outputs", "model_outputs", "session")
+    __slots__ = ("architecture", "forward_graph", "outputs", "model_outputs")
 
     def __init__(
         self,
@@ -25,6 +25,7 @@ class FitGraph(Graph):
         architecture: Architecture,
         forward_graph: ForwardGraph,  # pylint: disable=unused-argument
     ) -> None:
+        super().__init__(batch_size)
         self.batch_size = batch_size
         self.architecture = architecture
         self.forward_graph = forward_graph

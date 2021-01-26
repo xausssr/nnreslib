@@ -22,7 +22,6 @@ class ForwardGraph(Graph):
         "parameters",
         "inputs",
         "outputs",
-        "session",
         "_parameters_index"
         # "vector_error",
         # "train_loss",
@@ -135,7 +134,7 @@ class ForwardGraph(Graph):
     def describe(self) -> None:
         ...
 
-    def predict_proba(self, x_data: np.ndarray) -> List[np.ndarray]:
+    def predict_proba(self, x_data: np.ndarray) -> Union[np.ndarray, List[np.ndarray]]:
         dataset = self._prepare_batch(x_data, shuffle=False)
         predict_batches, _ = self.session.run(self._get_batches(dataset, train=False))
         predict_result = list(self.session.run(self.outputs, feed_dict={self.inputs: predict_batches[0]}))
@@ -144,12 +143,21 @@ class ForwardGraph(Graph):
                 zip(predict_result, self.session.run(self.outputs, feed_dict={self.inputs: batch}))
             ):
                 predict_result[pred_idx] = np.vstack([pred_mem, pred_current])
-        return predict_result
+        return predict_result[0] if len(predict_result) == 1 else predict_result
 
-    def predict(self, x_data: np.ndarray, thresholds: Optional[List[float]] = None) -> List[np.ndarray]:
+    def predict(
+        self, x_data: np.ndarray, thresholds: Optional[Union[float, List[float]]] = 0.5
+    ) -> Union[np.ndarray, List[np.ndarray]]:
         predict_results = self.predict_proba(x_data)
         if thresholds is None:
             thresholds = [0.5 for idx in range(len(predict_results))]
-        for out_idx, (predict_result, threshold) in enumerate(zip(predict_results, thresholds)):
-            predict_results[out_idx] = (predict_result > threshold).astype(int)
-        return predict_results
+            for out_idx, (predict_result, threshold) in enumerate(zip(predict_results, thresholds)):
+                predict_results[out_idx] = (predict_result > threshold).astype(int)
+        else:
+            if isinstance(thresholds, float):
+                _thresholds = [thresholds]
+            else:
+                _thresholds = thresholds
+            for out_idx, (predict_result, threshold) in enumerate(zip(predict_results, _thresholds)):
+                predict_results[out_idx] = (predict_result > threshold).astype(int)
+        return predict_results[0] if len(predict_results) == 1 else predict_results
