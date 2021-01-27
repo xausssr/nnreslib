@@ -160,8 +160,14 @@
                     "$ref": "#/definitions/LayerName"
                 },
                 "type": {
-                    "$ref": "#/definitions/LayerType",
-                    "const": "InputLayer"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/LayerType"
+                        },
+                        {
+                            "const": "InputLayer"
+                        }
+                    ]
                 },
                 "input_shape": {
                     "description": "Shape of input data",
@@ -170,7 +176,6 @@
             },
             "additionalProperties": false,
             "required": [
-                "type",
                 "input_shape"
             ]
         },
@@ -181,8 +186,14 @@
                     "$ref": "#/definitions/LayerName"
                 },
                 "type": {
-                    "$ref": "#/definitions/LayerType",
-                    "const": "ConvolutionLayer"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/LayerType"
+                        },
+                        {
+                            "const": "ConvolutionLayer"
+                        }
+                    ]
                 },
                 "kernel": {
                     "description": "Shape of kernel",
@@ -232,7 +243,6 @@
             },
             "additionalProperties": false,
             "required": [
-                "type",
                 "kernel",
                 "stride",
                 "filters"
@@ -245,8 +255,14 @@
                     "$ref": "#/definitions/LayerName"
                 },
                 "type": {
-                    "$ref": "#/definitions/LayerType",
-                    "const": "MaxPoolLayer"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/LayerType"
+                        },
+                        {
+                            "const": "MaxPoolLayer"
+                        }
+                    ]
                 },
                 "kernel": {
                     "description": "Shape of kernel",
@@ -273,7 +289,6 @@
             },
             "additionalProperties": false,
             "required": [
-                "type",
                 "kernel",
                 "stride"
             ]
@@ -285,8 +300,14 @@
                     "$ref": "#/definitions/LayerName"
                 },
                 "type": {
-                    "$ref": "#/definitions/LayerType",
-                    "const": "FlattenLayer"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/LayerType"
+                        },
+                        {
+                            "const": "FlattenLayer"
+                        }
+                    ]
                 },
                 "merge": {
                     "oneOf": [
@@ -303,10 +324,7 @@
                     "$ref": "#/definitions/IsOutputLayer"
                 }
             },
-            "additionalProperties": false,
-            "required": [
-                "type"
-            ]
+            "additionalProperties": false
         },
         "FullyConnectedLayer": {
             "description": "Properties specific to FullyConnectedLayer",
@@ -315,8 +333,14 @@
                     "$ref": "#/definitions/LayerName"
                 },
                 "type": {
-                    "$ref": "#/definitions/LayerType",
-                    "const": "FullyConnectedLayer"
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/LayerType"
+                        },
+                        {
+                            "const": "FullyConnectedLayer"
+                        }
+                    ]
                 },
                 "neurons": {
                     "description": "Neurons count",
@@ -347,7 +371,6 @@
             },
             "additionalProperties": false,
             "required": [
-                "type",
                 "neurons"
             ]
         },
@@ -381,6 +404,7 @@
                 "$ref": "#/definitions/Layer"
             },
             "minItems": 2,
+            "uniqueItems": true,
             "type": "array"
         },
         "LayersWithCustomInputsDefinition": {
@@ -395,6 +419,7 @@
                                 "$ref": "#/definitions/LayerName"
                             },
                             "minItems": 1,
+                            "uniqueItems": true,
                             "type": "array"
                         }
                     ]
@@ -422,6 +447,7 @@
                 "$ref": "#/definitions/LayersWithCustomInputsDefinition"
             },
             "minItems": 1,
+            "uniqueItems": true,
             "type": "array"
         },
         "Architecture": {
@@ -441,7 +467,106 @@
             },
             "additionalItems": false,
             "minItems": 2,
+            "uniqueItems": true,
             "type": "array"
+        },
+        "LayerInfo": {
+            "properties": {
+                "layer_id": {
+                    "minimum": 1,
+                    "type": "integer"
+                },
+                "layer": {
+                    "$ref": "#/definitions/Layer"
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "layer_id",
+                "layre"
+            ],
+            "type": "object"
+        },
+        "ArchitectureInfo": {
+            "properties": {
+                "layer": {
+                    "$ref": "#/definitions/LayerName"
+                },
+                "inputs": {
+                    "items": {
+                        "$ref": "#/definitions/LayerName"
+                    },
+                    "minItems": 0,
+                    "uniqueItems": true,
+                    "type": "array"
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "layer",
+                "inputs"
+            ],
+            "type": "object"
+        },
+        "BuiltArchitecture": {
+            "description": "Full architecture definition",
+            "properties": {
+                "neurons_count": {
+                    "exclusiveMinimum": 0,
+                    "type": "integer"
+                },
+                "_layers": {
+                    "patternProperties": {
+                        "^[a-zA-Z0-9_]+$": {
+                            "$ref": "#/definitions/LayerInfo"
+                        }
+                    },
+                    "additionalProperties": false,
+                    "type": "object"
+                },
+                "_input_layers": {
+                    "items": {
+                        "$ref": "#/definitions/LayerName"
+                    },
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "type": "array"
+                },
+                "_output_layers": {
+                    "items": {
+                        "$ref": "#/definitions/LayerName"
+                    },
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "type": "array"
+                },
+                "_trainable_layers": {
+                    "items": {
+                        "$ref": "#/definitions/LayerName"
+                    },
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "type": "array"
+                },
+                "_architecture": {
+                    "items": {
+                        "$ref": "#/definitions/ArchitectureInfo"
+                    },
+                    "minItems": 2,
+                    "uniqueItems": true,
+                    "type": "array"
+                }
+            },
+            "additionalProperties": false,
+            "required": [
+                "neurons_count",
+                "_layers",
+                "_input_layers",
+                "_output_layers",
+                "_trainable_layers",
+                "architecture"
+            ],
+            "type": "object"
         }
     },
     "oneOf": [
@@ -452,6 +577,21 @@
                 }
             },
             "required": [
+                "architecture"
+            ]
+        },
+        {
+            "properties": {
+                "is_built": {
+                    "const": true,
+                    "type": "boolean"
+                },
+                "architecture": {
+                    "$ref": "#/definitions/BuiltArchitecture"
+                }
+            },
+            "required": [
+                "is_build",
                 "architecture"
             ]
         }

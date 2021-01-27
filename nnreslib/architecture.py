@@ -23,25 +23,24 @@ from typing import (
 )
 
 from jsonschema import validate
-from typing_extensions import TypedDict
 
 from .layers import ConvolutionLayer, FlattenLayer, FullyConnectedLayer, InputLayer, Layer, MaxPoolLayer, TrainableLayer
+from .utils.serialized_types import (
+    SerializedArchitectureInfoType,
+    SerializedArchitectureLevelType,
+    SerializedArchitectureType,
+    SerializedBuiltArchitectureType,
+    SerializedLayerInfoType,
+    SerializedLayersWithCustomInputsDefinition,
+    SerializedLayerType,
+    SerializedNotBuiltArchitectureType,
+)
 from .utils.types import Shape
 
 ArchitectureLevelKeyType = Union[str, Sequence[str]]
 ArchitectureLevelValueType = Union[Layer, Sequence[Layer]]
 ArchitectureLevelType = Union[ArchitectureLevelValueType, Mapping[ArchitectureLevelKeyType, ArchitectureLevelValueType]]
 ArchitectureType = Sequence[ArchitectureLevelType]
-
-SerializedLayerType = Dict[str, Any]  # TODO: fix type annotation
-SerializedLayersListType = List[SerializedLayerType]
-SerializedLayersWithCustomInputsDefinition = TypedDict(
-    "SerializedLayersWithCustomInputsDefinition",
-    {"inputs": Union[str, List[str]], "layers": Union[SerializedLayerType, SerializedLayersListType]},
-)
-SerializedLayersWithCustomInputs = List[SerializedLayersWithCustomInputsDefinition]
-SerializedArchitectureLevelType = Union[SerializedLayerType, SerializedLayersListType, SerializedLayersWithCustomInputs]
-SerializedArchitectureType = List[SerializedArchitectureLevelType]
 
 ParseType = Tuple[Tuple[str, ...], Layer]
 ParseResultType = Generator[ParseType, None, None]
@@ -52,8 +51,16 @@ class LayerInfo:
     layer_id: int
     layer: Layer
 
+    def serialize(self) -> SerializedLayerInfoType:
+        return dict(layer_id=self.layer_id, layer=self.layer.serialize())
 
-ArchitectureInfo = NamedTuple("ArchitectureInfo", [("layer", str), ("inputs", Tuple[str, ...])])
+
+_ArchitectureInfo = NamedTuple("_ArchitectureInfo", [("layer", str), ("inputs", Tuple[str, ...])])
+
+
+class ArchitectureInfo(_ArchitectureInfo):
+    def serialize(self) -> SerializedArchitectureInfoType:
+        return dict(layer=self.layer, inputs=list(self.inputs))
 
 
 class Architecture:
@@ -266,54 +273,55 @@ class Architecture:
         for layer, inputs_layers in self._architecture:
             yield self._layers[layer].layer, inputs_layers
 
-    def to_json(self) -> str:
-        arch = dict(
+    def serialize(self, built: bool = False) -> SerializedArchitectureType:  # TODO: discuss default value for `built`
+        if not built:
+            return self._serialize()
+        return self._serialize_built()
+
+    def _serialize_built(self) -> SerializedBuiltArchitectureType:
+        return dict(
             neurons_count=self.neurons_count,
-            _layers={},
+            _layers={layer_name: layer_info.serialize() for layer_name, layer_info in self._layers.items()},
             _input_layers=self._input_layers,
             _output_layers=self._output_layers,
             _trainable_layers=self._trainable_layers,
-            _architecture=self._architecture,
-            _build=True,
+            _architecture=[arch_info.serialize() for arch_info in self._architecture],
         )
-        return json.dumps(dict(architecture=arch))
 
-    def serialize(self) -> SerializedArchitectureType:
-        # # TODO: fix return type annotation
-        # def unpack_layers(layers: List[Dict[str, Any]]) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
-        #     if len(layers) == 1:
-        #         return layers[0]
-        #     return layers
+    def _serialize(self) -> SerializedNotBuiltArchitectureType:
+        def unpack_layers(layers: List[SerializedLayerType]) -> Union[SerializedLayerType, List[SerializedLayerType]]:
+            if len(layers) == 1:
+                return layers[0]
+            return layers
 
-        # def wrap_layers(
-        #     previous_level: List[str], layers_inputs: Tuple[str, ...], layers: List[Dict[str, Any]]
-        # ) -> SerializedArchitectureLevelType:
-        #     def is_inputs_in_previous_level(previous_level: List[str], layers_inputs: Tuple[str, ...]) -> bool:
-        #         for layer in layers_inputs:
-        #             if layer not in previous_level:
-        #                 return False
-        #         return True
+        def wrap_layers(
+            previous_level: List[str], layers_inputs: Tuple[str, ...], layers: List[SerializedLayerType]
+        ) -> SerializedArchitectureLevelType:
+            def is_inputs_in_previous_level(previous_level: List[str], layers_inputs: Tuple[str, ...]) -> bool:
+                for layer in layers_inputs:
+                    if layer not in previous_level:
+                        return False
+                return True
 
-        #     unpacked_layers = unpack_layers(layers)
-        #     if is_inputs_in_previous_level(previous_level, layers_inputs):
-        #         return unpacked_layers
-        #     return [dict(inputs=layers_inputs, layers=unpacked_layers)]
+            unpacked_layers = unpack_layers(layers)
+            if is_inputs_in_previous_level(previous_level, layers_inputs):
+                return unpacked_layers
+            return [SerializedLayersWithCustomInputsDefinition(inputs=layers_inputs, layers=unpacked_layers)]
 
-        # inputs_to_layers: Dict[Tuple[str, ...], List[str]] = {}
-        # for layer_name, layer_inputs in self._architecture:
-        #     if layer_inputs not in inputs_to_layers:
-        #         inputs_to_layers[layer_inputs] = []
-        #     inputs_to_layers[layer_inputs].append(layer_name)
+        inputs_to_layers: Dict[Tuple[str, ...], List[str]] = {}
+        for layer_name, layer_inputs in self._architecture:
+            if layer_inputs not in inputs_to_layers:
+                inputs_to_layers[layer_inputs] = []
+            inputs_to_layers[layer_inputs].append(layer_name)
 
-        # architecture: SerializedArchitectureType = []
-        # input_layers = [self._layers[layer_name].layer.serialize() for layer_name in self._input_layers]
-        # architecture.append(unpack_layers(input_layers))
+        architecture: SerializedNotBuiltArchitectureType = []
+        input_layers = [self._layers[layer_name].layer.serialize() for layer_name in self._input_layers]
+        architecture.append(unpack_layers(input_layers))
 
-        # previous_level = self._input_layers
-        # for layers_inputs, layer_names in inputs_to_layers.items():
-        #     layers = [self._layers[layer_name].layer.serialize() for layer_name in layer_names]
-        #     architecture.append(wrap_layers(previous_level, layers_inputs, layers))
-        #     previous_level = layer_names
+        previous_level = self._input_layers
+        for layers_inputs, layer_names in inputs_to_layers.items():
+            layers = [self._layers[layer_name].layer.serialize() for layer_name in layer_names]
+            architecture.append(wrap_layers(previous_level, layers_inputs, layers))
+            previous_level = layer_names
 
-        # return architecture
-        ...
+        return architecture

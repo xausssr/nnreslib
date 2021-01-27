@@ -162,9 +162,10 @@ def test_serialize():
         MaxPoolLayer("pool_1", Shape(3, 2), Shape(1, 1)),
         FlattenLayer("flat_1"),
         FullyConnectedLayer("fc_1", 3),
-        FullyConnectedLayer("fc_2", 2),
+        FullyConnectedLayer("fc_2", 2, is_out=True),
     ]
     flat_architecture = Architecture(flat_architecture_def)
+
     assert flat_architecture.serialize() == [
         {"name": "input", "type": "InputLayer", "input_shape": [15, 10, 1]},
         {
@@ -194,12 +195,83 @@ def test_serialize():
             "name": "fc_2",
             "type": "FullyConnectedLayer",
             "merge": None,
-            "is_out": False,
+            "is_out": True,
             "activation": "SIGMOID",
             "initializer": {"weights_initializer": "HE_NORMAL", "biases_initializer": "ZEROS"},
             "neurons": 2,
         },
     ]
+
+    assert flat_architecture.serialize(True) == {
+        "neurons_count": 98,
+        "_layers": {
+            "input": {"layer_id": 1, "layer": {"name": "input", "type": "InputLayer", "input_shape": [15, 10, 1]}},
+            "conv_1": {
+                "layer_id": 2,
+                "layer": {
+                    "name": "conv_1",
+                    "type": "ConvolutionLayer",
+                    "merge": None,
+                    "is_out": False,
+                    "activation": "RELU",
+                    "initializer": {"weights_initializer": "HE_NORMAL", "biases_initializer": "ZEROS"},
+                    "kernel": [5, 5],
+                    "stride": [5, 5],
+                    "filters": 3,
+                    "pad": {"shape": [0, 0], "is_null": True},
+                },
+            },
+            "pool_1": {
+                "layer_id": 3,
+                "layer": {
+                    "name": "pool_1",
+                    "type": "MaxPoolLayer",
+                    "merge": None,
+                    "is_out": False,
+                    "kernel": [3, 2],
+                    "stride": [1, 1],
+                },
+            },
+            "flat_1": {
+                "layer_id": 4,
+                "layer": {"name": "flat_1", "type": "FlattenLayer", "merge": None, "is_out": False},
+            },
+            "fc_1": {
+                "layer_id": 5,
+                "layer": {
+                    "name": "fc_1",
+                    "type": "FullyConnectedLayer",
+                    "merge": None,
+                    "is_out": False,
+                    "activation": "SIGMOID",
+                    "initializer": {"weights_initializer": "HE_NORMAL", "biases_initializer": "ZEROS"},
+                    "neurons": 3,
+                },
+            },
+            "fc_2": {
+                "layer_id": 6,
+                "layer": {
+                    "name": "fc_2",
+                    "type": "FullyConnectedLayer",
+                    "merge": None,
+                    "is_out": True,
+                    "activation": "SIGMOID",
+                    "initializer": {"weights_initializer": "HE_NORMAL", "biases_initializer": "ZEROS"},
+                    "neurons": 2,
+                },
+            },
+        },
+        "_input_layers": ["input"],
+        "_output_layers": ["fc_2"],
+        "_trainable_layers": ["conv_1", "fc_1", "fc_2"],
+        "_architecture": [
+            {"layer": "conv_1", "inputs": ["input"]},
+            {"layer": "pool_1", "inputs": ["conv_1"]},
+            {"layer": "flat_1", "inputs": ["pool_1"]},
+            {"layer": "fc_1", "inputs": ["flat_1"]},
+            {"layer": "fc_2", "inputs": ["fc_1"]},
+        ],
+    }
 
     inception_architecture_def: ArchitectureType = [
         InputLayer("input", Shape(15, 10, 1)),
@@ -214,9 +286,10 @@ def test_serialize():
             "pool_1": FlattenLayer("flat_1"),
         },
         FullyConnectedLayer("fc_1", 3),
-        FullyConnectedLayer("fc_2", 2),
+        FullyConnectedLayer("fc_2", 2, is_out=True),
     ]
     inception_architecture = Architecture(inception_architecture_def)
+
     assert inception_architecture.serialize() == [
         {"name": "input", "type": "InputLayer", "input_shape": [15, 10, 1]},
         [
@@ -267,9 +340,96 @@ def test_serialize():
             "name": "fc_2",
             "type": "FullyConnectedLayer",
             "merge": None,
-            "is_out": False,
+            "is_out": True,
             "activation": "SIGMOID",
             "initializer": {"weights_initializer": "HE_NORMAL", "biases_initializer": "ZEROS"},
             "neurons": 2,
         },
     ]
+
+    assert inception_architecture.serialize(True) == {
+        "neurons_count": 181,
+        "_layers": {
+            "input": {"layer_id": 1, "layer": {"name": "input", "type": "InputLayer", "input_shape": [15, 10, 1]}},
+            "conv_1": {
+                "layer_id": 2,
+                "layer": {
+                    "name": "conv_1",
+                    "type": "ConvolutionLayer",
+                    "merge": None,
+                    "is_out": False,
+                    "activation": "RELU",
+                    "initializer": {"weights_initializer": "HE_NORMAL", "biases_initializer": "ZEROS"},
+                    "kernel": [5, 5],
+                    "stride": [5, 5],
+                    "filters": 5,
+                    "pad": {"shape": [0, 0], "is_null": True},
+                },
+            },
+            "conv_2": {
+                "layer_id": 3,
+                "layer": {
+                    "name": "conv_2",
+                    "type": "ConvolutionLayer",
+                    "merge": None,
+                    "is_out": False,
+                    "activation": "RELU",
+                    "initializer": {"weights_initializer": "HE_NORMAL", "biases_initializer": "ZEROS"},
+                    "kernel": [1, 1],
+                    "stride": [1, 1],
+                    "filters": 5,
+                    "pad": {"shape": [0, 0], "is_null": True},
+                },
+            },
+            "pool_1": {
+                "layer_id": 4,
+                "layer": {
+                    "name": "pool_1",
+                    "type": "MaxPoolLayer",
+                    "merge": {"main_input": "conv_1", "merge_func": "RESHAPE_TO_MAIN"},
+                    "is_out": False,
+                    "kernel": [3, 2],
+                    "stride": [2, 2],
+                },
+            },
+            "flat_1": {
+                "layer_id": 5,
+                "layer": {"name": "flat_1", "type": "FlattenLayer", "merge": None, "is_out": False},
+            },
+            "fc_1": {
+                "layer_id": 6,
+                "layer": {
+                    "name": "fc_1",
+                    "type": "FullyConnectedLayer",
+                    "merge": None,
+                    "is_out": False,
+                    "activation": "SIGMOID",
+                    "initializer": {"weights_initializer": "HE_NORMAL", "biases_initializer": "ZEROS"},
+                    "neurons": 3,
+                },
+            },
+            "fc_2": {
+                "layer_id": 7,
+                "layer": {
+                    "name": "fc_2",
+                    "type": "FullyConnectedLayer",
+                    "merge": None,
+                    "is_out": True,
+                    "activation": "SIGMOID",
+                    "initializer": {"weights_initializer": "HE_NORMAL", "biases_initializer": "ZEROS"},
+                    "neurons": 2,
+                },
+            },
+        },
+        "_input_layers": ["input"],
+        "_output_layers": ["fc_2"],
+        "_trainable_layers": ["conv_1", "conv_2", "fc_1", "fc_2"],
+        "_architecture": [
+            {"layer": "conv_1", "inputs": ["input"]},
+            {"layer": "conv_2", "inputs": ["input"]},
+            {"layer": "pool_1", "inputs": ["conv_1", "conv_2"]},
+            {"layer": "flat_1", "inputs": ["pool_1"]},
+            {"layer": "fc_1", "inputs": ["flat_1"]},
+            {"layer": "fc_2", "inputs": ["fc_1"]},
+        ],
+    }
