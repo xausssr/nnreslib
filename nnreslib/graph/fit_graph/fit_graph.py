@@ -25,7 +25,6 @@ class FitGraph(Graph):
         architecture: Architecture,
         forward_graph: ForwardGraph,  # pylint: disable=unused-argument
     ) -> None:
-        super().__init__(batch_size)
         self.batch_size = batch_size
         self.architecture = architecture
         self.forward_graph = forward_graph

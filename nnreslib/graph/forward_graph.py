@@ -149,15 +149,15 @@ class ForwardGraph(Graph):
         self, x_data: np.ndarray, thresholds: Optional[Union[float, List[float]]] = 0.5
     ) -> Union[np.ndarray, List[np.ndarray]]:
         predict_results = self.predict_proba(x_data)
+        if isinstance(predict_results, np.ndarray):
+            predict_results = [predict_results]
         if thresholds is None:
-            thresholds = [0.5 for idx in range(len(predict_results))]
-            for out_idx, (predict_result, threshold) in enumerate(zip(predict_results, thresholds)):
-                predict_results[out_idx] = (predict_result > threshold).astype(int)
+            _thresholds = [0.5 for idx in range(len(predict_results))]
         else:
             if isinstance(thresholds, float):
                 _thresholds = [thresholds]
             else:
                 _thresholds = thresholds
-            for out_idx, (predict_result, threshold) in enumerate(zip(predict_results, _thresholds)):
-                predict_results[out_idx] = (predict_result > threshold).astype(int)
+                for out_idx, (predict_result, threshold) in enumerate(zip(predict_results, _thresholds)):
+                    predict_results[out_idx] = (predict_result > threshold).astype(int)
         return predict_results[0] if len(predict_results) == 1 else predict_results
