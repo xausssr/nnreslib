@@ -17,48 +17,37 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: 3.8
-      - name: Cache venv
-        id: cache-venv
+      - name: Cache env
+        id: cache-env
         uses: actions/cache@v2.1.3
         with:
-          path: ./.venv
-          key: ${{ runner.os }}-venv-${{ hashFiles('requirements/linting.txt', 'requirements/build.txt', 'requirements/main.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-venv-
-      - name: Create venv
-        if: steps.cache-venv.outputs.cache-hit != 'true'
+          path: ${{ env.pythonLocation }}
+          key: ${{ runner.os }}-${{ env.pythonLocation }}-${{ hashFiles('requirements/linting.txt', 'requirements/build.txt', 'requirements/main.txt') }}
+      - name: Create env
+        if: steps.cache-env.outputs.cache-hit != 'true'
         run: |
-          python -m venv ./.venv
-          source ./.venv/bin/activate
-          python -m pip install -r requirements/linting.txt -r requirements/build.txt -r requirements/main.txt
+          pip install -r requirements/linting.txt -r requirements/build.txt -r requirements/main.txt
       - name: Linting with flake8
         run: |
-          source ./.venv/bin/activate
-          python -m flake8 $MODULE_NAME
+          flake8 $MODULE_NAME
       - name: Linting with pylint
         run: |
-          source ./.venv/bin/activate
-          python -m pylint $MODULE_NAME
+          pylint $MODULE_NAME
       - name: Linting with pycodestyle
         run: |
-          source ./.venv/bin/activate
-          python -m pycodestyle $MODULE_NAME
+          pycodestyle $MODULE_NAME
       - name: Linting with mypy
         run: |
-          source ./.venv/bin/activate
-          python -m mypy $MODULE_NAME
+          mypy $MODULE_NAME
       - name: Linting with isort
         run: |
-          source ./.venv/bin/activate
-          python -m isort --check-only $MODULE_NAME
+          isort --check-only $MODULE_NAME
       - name: Linting with black
         run: |
-          source ./.venv/bin/activate
-          python -m black --check $MODULE_NAME
+          black --check $MODULE_NAME
       - name: Run tests
         run: |
-          source ./.venv/bin/activate
-          python -m pytest
+          pytest
       - name: Check version
         run: |
           TAG=$(git describe --tags)
@@ -72,14 +61,13 @@ jobs:
           fi;
       - name: Build and publish package
         run: |
-          source ./.venv/bin/activate
           echo "Build package"
           python setup.py sdist bdist_wheel
           # TODO: This need? echo "Run test on build package"
           echo "Publish to test PyPi"
-          python -m twine upload --repository testpypi -u $TWINE_TEST_USERNAME -p $TWINE_TEST_PASSWORD dist/*
+          twine upload --repository testpypi -u $TWINE_TEST_USERNAME -p $TWINE_TEST_PASSWORD dist/*
           echo "Publish to production PyPi"
-          python -m twine upload dist/*
+          twine upload dist/*
         env:
           TWINE_TEST_USERNAME: ${{ secrets.TEST_PYPY_USERNAME }}
           TWINE_TEST_PASSWORD: ${{ secrets.TEST_PYPY_PASSWORD }}
