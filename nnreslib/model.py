@@ -1,5 +1,5 @@
 from os import PathLike
-from typing import Any, Dict, Tuple, Union, overload
+from typing import Any, Dict, List, Optional, Tuple, Union, overload
 
 import numpy as np
 
@@ -104,9 +104,13 @@ class Model:
             **kwargs
         )
 
-    def predict(self) -> None:
-        # async
-        ...
+    def predict(
+        self, x_data: np.ndarray, thresholds: Optional[Union[float, List[float]]] = 0.5
+    ) -> Union[np.ndarray, List[np.ndarray]]:
+        return self.forward_graph.predict(x_data)
+
+    def predict_proba(self, x_data: np.ndarray) -> Union[np.ndarray, List[np.ndarray]]:
+        return self.forward_graph.predict_proba(x_data)
 
     def get_parametrs(self) -> None:
         # return numpy tensors with weights
