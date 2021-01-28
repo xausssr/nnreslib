@@ -7,6 +7,7 @@ from .architecture import Architecture, ArchitectureType
 from .graph import ForwardGraph
 from .graph.fit_graph.fit_graph import FitGraph  # FIXME: move FitGraph to above module
 from .utils.metrics import Metrics
+from .utils.serialized_types import SerializedModelType
 
 
 class Model:
@@ -119,3 +120,10 @@ class Model:
     def load(self) -> None:
         # load from file
         ...
+
+    def serialize(self, built: bool = False) -> SerializedModelType:
+        serialized_data: SerializedModelType = dict(
+            batch_size=self.batch_size,
+            architecture=dict(architecture=self.architecture.serialize(built), is_built=built),
+        )
+        return serialized_data
