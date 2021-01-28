@@ -25,7 +25,7 @@ class FitGraph(Graph):
         architecture: Architecture,
         forward_graph: ForwardGraph,  # pylint: disable=unused-argument
     ) -> None:
-        self.batch_size = batch_size
+        super().__init__(batch_size)
         self.architecture = architecture
         self.forward_graph = forward_graph
         self.outputs = G.squeeze(
@@ -117,6 +117,5 @@ class FitGraph(Graph):
                     current_train_loss,
                     current_validation_loss,
                 )
-
         _logger.warning("Train ended on epoch: %s  with loss: %.12f", epoch, current_train_loss)
         return epoch, current_train_loss

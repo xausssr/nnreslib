@@ -134,6 +134,8 @@ class ForwardGraph(Graph):
     def describe(self) -> None:
         ...
 
+    # FIXME Get List[np.nparray] for x_data, we can use more than 1 input layers
+
     def predict_proba(self, x_data: np.ndarray) -> Union[np.ndarray, List[np.ndarray]]:
         dataset = self._prepare_batch(x_data, shuffle=False)
         predict_batches, _ = self.session.run(self._get_batches(dataset, train=False))
@@ -146,8 +148,12 @@ class ForwardGraph(Graph):
         return predict_result[0] if len(predict_result) == 1 else predict_result
 
     def predict(
-        self, x_data: np.ndarray, thresholds: Optional[Union[float, List[float]]] = 0.5
+        self, x_data: np.ndarray, thresholds: Optional[Union[float, List[float]]] = None
     ) -> Union[np.ndarray, List[np.ndarray]]:
+        """Get class labels from predict_proba() with list threshold for all output layers.
+        default threshold: None - 0.5 for all output layers.
+        """
+
         predict_results = self.predict_proba(x_data)
         if isinstance(predict_results, np.ndarray):
             predict_results = [predict_results]
@@ -158,6 +164,6 @@ class ForwardGraph(Graph):
                 _thresholds = [thresholds]
             else:
                 _thresholds = thresholds
-                for out_idx, (predict_result, threshold) in enumerate(zip(predict_results, _thresholds)):
-                    predict_results[out_idx] = (predict_result > threshold).astype(int)
+        for out_idx, (predict_result, threshold) in enumerate(zip(predict_results, _thresholds)):
+            predict_results[out_idx] = (predict_result > threshold).astype(int)
         return predict_results[0] if len(predict_results) == 1 else predict_results
