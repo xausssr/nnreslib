@@ -130,3 +130,23 @@ def test_serialize():
     assert Shape(0, is_null=True).serialize() == dict(shape=[0], is_null=True)
     assert Shape(1, 2, 3, is_null=True).serialize() == dict(shape=[1, 2, 3], is_null=True)
     assert Shape([1, 0, 3], is_null=True).serialize() == dict(shape=[1, 0, 3], is_null=True)
+
+
+def test_deserialize():
+    shape = Shape()
+    assert Shape.deserialize(shape.serialize()) == shape
+
+    shape = Shape(1, 2)
+    assert Shape.deserialize(shape.serialize()) == shape
+
+    shape = Shape([5])
+    assert Shape.deserialize(shape.serialize()) == shape
+
+    shape = Shape(0, is_null=True)
+    assert Shape.deserialize(shape.serialize()) == shape
+
+    shape = Shape(1, 2, 3, is_null=True)
+    assert Shape.deserialize(shape.serialize()) == shape
+
+    shape = Shape([1, 0, 3], is_null=True)
+    assert Shape.deserialize(shape.serialize()) == shape

@@ -114,3 +114,9 @@ class Shape:
         if not self.is_null:
             return [*self.dimension]
         return dict(shape=[*self.dimension], is_null=self.is_null)
+
+    @classmethod
+    def deserialize(cls, data: SerializedShapeType) -> Shape:
+        if isinstance(data, list):
+            return cls(data)
+        return cls(data["shape"], is_null=data["is_null"])
