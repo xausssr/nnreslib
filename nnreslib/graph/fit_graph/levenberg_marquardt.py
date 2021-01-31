@@ -141,7 +141,12 @@ class LevenbergMarquardt(FitGraph):
             feed_dict[self.regularization_factor] *= regularisation_factor_increase
             if step != step_into_epoch - 1:
                 self.session.run(self.restore_parameters)
-        return new_loss, self.session.run(self.model_outputs, feed_dict), (feed_dict[self.regularization_factor],)
+        return (
+            new_loss,
+            # FIXME: get correct prediction
+            self.session.run(self.forward_graph.outputs[0], feed_dict),
+            (feed_dict[self.regularization_factor],),
+        )
 
     def _process_batch_result(self, params: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
         kwargs["regularisation_factor_init"] = params[0]
@@ -149,5 +154,6 @@ class LevenbergMarquardt(FitGraph):
     def _process_valid_batch(self, batch: Tuple[np.ndarray, np.ndarray]) -> Tuple[float, np.ndarray]:
         feed_dict = self._get_feed_dict(batch)
         current_loss = self.session.run(self.train_loss, feed_dict)
-        output = self.session.run(self.model_outputs, feed_dict)
+        # FIXME: get correct prediction
+        output = self.session.run(self.forward_graph.outputs[0], feed_dict)
         return current_loss, output

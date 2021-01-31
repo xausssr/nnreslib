@@ -91,19 +91,23 @@ class Model:
         fit_graph = FitGraph.get_fitter(method)(
             self.batch_size, self.architecture, self.forward_graph
         )  # FIXME: create fitter in get_fitter
+        # FIXME: don't recreate fitter
         self.fit_graphs[method] = fit_graph
+
         return fit_graph.fit(
             train_x_data,
             train_y_data,
             valid_x_data,
             valid_y_data,
+            self.metrics,
             max_epoch,
             min_error,
             shuffle,
             logging_step,
-            **kwargs
+            **kwargs,
         )
 
+    # TODO: fix thresholds
     def predict(
         self, x_data: np.ndarray, thresholds: Optional[Union[float, List[float]]] = 0.5
     ) -> Union[np.ndarray, List[np.ndarray]]:

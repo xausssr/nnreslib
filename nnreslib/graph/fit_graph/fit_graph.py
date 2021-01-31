@@ -10,6 +10,7 @@ from .. import ForwardGraph
 from ..graph import Graph
 from ...architecture import Architecture
 from ...backend import graph as G
+from ...utils.metrics import Metrics, OpMode
 
 _logger = logging.getLogger(__name__)
 
@@ -76,6 +77,7 @@ class FitGraph(Graph):
         train_y_data: np.ndarray,
         valid_x_data: np.ndarray,  # TODO: valid data is optional
         valid_y_data: np.ndarray,
+        metrics: Metrics,
         max_epoch: int = 100,
         min_error: float = 1e-10,
         shuffle: bool = True,
@@ -88,23 +90,27 @@ class FitGraph(Graph):
         current_train_loss = 1e21
         epoch = 0
 
+        metrics.clear(OpMode.TRAIN, OpMode.VALID)
         while current_train_loss > min_error and epoch < max_epoch:
             epoch += 1
-            current_train_loss = 0.0
             # TODO: move batch processing to function
-            train_batches = self.session.run(self._get_batches(train_dataset))
-            for batch in zip(train_batches[0], train_batches[1]):
-                loss_on_batch, _, method_params = self._process_train_batch(batch, **kwargs)
-                self._process_batch_result(method_params, kwargs)
-                current_train_loss += loss_on_batch
-                # TODO: calculate metrics for training data
+            with metrics.batch_metrics(OpMode.TRAIN, epoch) as batch_metrics:
+                current_train_loss = 0.0
+                train_batches = self.session.run(self._get_batches(train_dataset))
+                for batch in zip(train_batches[0], train_batches[1]):
+                    loss_on_batch, prediction, method_params = self._process_train_batch(batch, **kwargs)
+                    self._process_batch_result(method_params, kwargs)
+                    current_train_loss += loss_on_batch
+                    batch_metrics.calc_batch(batch[1], prediction)
 
-            current_validation_loss = 0.0
-            valid_batches = self.session.run(self._get_batches(valid_dataset))
-            for batch in zip(valid_batches[0], valid_batches[1]):
-                loss_on_batch, _ = self._process_valid_batch(batch)
-                current_validation_loss += loss_on_batch
-                # TODO: calculate metrics for validation data
+            # TODO: make validation on validate_step
+            with metrics.batch_metrics(OpMode.VALID, epoch) as batch_metrics:
+                current_validation_loss = 0.0
+                valid_batches = self.session.run(self._get_batches(valid_dataset))
+                for batch in zip(valid_batches[0], valid_batches[1]):
+                    loss_on_batch, prediction = self._process_valid_batch(batch)
+                    current_validation_loss += loss_on_batch
+                    batch_metrics.calc_batch(batch[1], prediction)
 
             # TODO: plot it
             current_train_loss = current_train_loss / train_batches[0].shape[0]
