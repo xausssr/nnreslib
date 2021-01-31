@@ -7,7 +7,7 @@ from .architecture import (
     SerializedLayersWithCustomInputsDefinition,
     SerializedNotBuiltArchitectureType,
 )
-from .initializer import SerializedInitializationType, SerializedInitializeFunctionType
+from .initialization import SerializedInitializationType, SerializedInitializeFunctionType
 from .layer import SerializedLayerType
 from .merge import SerializedMergeInputsType
 from .model import SerializedModelType

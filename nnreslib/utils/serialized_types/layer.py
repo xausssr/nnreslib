@@ -2,7 +2,7 @@ from typing import Optional
 
 from typing_extensions import TypedDict
 
-from .initializer import SerializedInitializationType
+from .initialization import SerializedInitializationType
 from .merge import SerializedMergeInputsType
 from .shape import SerializedShapeType
 

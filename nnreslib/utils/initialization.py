@@ -3,7 +3,7 @@ from __future__ import annotations
 import collections.abc as ca
 import functools
 import math
-from enum import Enum
+from enum import Enum, unique
 from typing import TYPE_CHECKING, Callable, Union
 
 import numpy as np
@@ -47,6 +47,7 @@ def _haykin(
     return np.random.uniform(-1 * border, border, size=parameter_shape.dimension)
 
 
+@unique
 class StandartInitializer(Enum):
     ZEROS = functools.partial(_zeros)
     HE_NORMAL = functools.partial(_he_normal)
@@ -62,6 +63,7 @@ InitializerType = Callable[[Shape, Shape, Shape, float, float], np.ndarray]
 
 class Initialization:
     # FIXME: write docstring
+    # TODO: add __slots__
     def __init__(
         self,
         weights_initializer: Union[StandartInitializer, InitializerType] = StandartInitializer.HE_NORMAL,
@@ -76,6 +78,11 @@ class Initialization:
 
         self.weights = check_initializer(weights_initializer)
         self.biases = check_initializer(biases_initializer)
+
+    def __eq__(self, initialization: object) -> bool:
+        if isinstance(initialization, Initialization):
+            return self.weights == initialization.weights and self.biases == initialization.biases
+        return False
 
     def init_weights(self, layer: TrainableLayer, data_mean: float = 0.0, data_std: float = 0.0) -> np.ndarray:
         return self.weights(layer.input_shape, layer.output_shape, layer.weights_shape, data_mean, data_std)
@@ -93,4 +100,15 @@ class Initialization:
         return dict(
             weights_initializer=serialize_initializer(self.weights),
             biases_initializer=serialize_initializer(self.biases),
+        )
+
+    @classmethod
+    def deserialize(cls, data: SerializedInitializationType) -> Initialization:
+        def deserialize_initializer(initializer: SerializedInitializeFunctionType) -> InitializerType:
+            if isinstance(initializer, str):
+                return StandartInitializer[initializer].func
+            return lambda x: x  # type:ignore  # XXX: support deserialize CustomInitializer
+
+        return cls(
+            deserialize_initializer(data["weights_initializer"]), deserialize_initializer(data["biases_initializer"])
         )
