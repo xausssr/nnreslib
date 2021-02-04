@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, Optional, Tuple, Union
 
 import numpy as np
 
@@ -94,19 +94,14 @@ class LevenbergMarquardt(FitGraph):
         return opt.apply_gradients([(-parameters_derivation, parameters)])
 
     def _get_feed_dict(
-        self, batch: Tuple[np.ndarray, np.ndarray], regularisation_factor_init: Optional[float] = None
+        self, batch_x: np.ndarray, batch_y: Iterable[np.ndarray], regularisation_factor_init: Optional[float] = None
     ) -> Dict[Union[G.PlaceholderType, str], Union[float, np.ndarray]]:
         feed_dict: Dict[Union[G.PlaceholderType, str], Union[float, np.ndarray]] = {}
 
         # pylint:disable=protected-access
-        batch_x = batch[0]
+        _batch_x = batch_x
         if len(self.architecture._input_layers) == 1:
-            batch_x = np.array([batch_x])
-
-        batch_y = batch[1]
-        if len(self.architecture._output_layers) == 1:
-            batch_y = np.array([batch_y])
-        # pylint:enable=protected-access
+            batch_x = np.array([_batch_x])
 
         layer: Union[InputLayer, Layer]
         for layer, value in zip(self.architecture.input_layers, batch_x):
@@ -121,14 +116,14 @@ class LevenbergMarquardt(FitGraph):
 
     # FIXME input data is List[np.ndarray] or np.ndarray
     def _process_train_batch(
-        self, batch: Tuple[np.ndarray, np.ndarray], **kwargs: Any
-    ) -> Tuple[float, np.ndarray, Tuple[Any, ...]]:
+        self, batch_x: np.ndarray, batch_y: Iterable[np.ndarray], **kwargs: Any
+    ) -> Tuple[float, Tuple[np.ndarray, ...], Tuple[Any, ...]]:
         step_into_epoch: int = kwargs["step_into_epoch"]
         regularisation_factor_init: float = kwargs["regularisation_factor_init"]
         regularisation_factor_decay: float = kwargs["regularisation_factor_decay"]
         regularisation_factor_increase: float = kwargs["regularisation_factor_increase"]
 
-        feed_dict = self._get_feed_dict(batch, regularisation_factor_init)
+        feed_dict = self._get_feed_dict(batch_x, batch_y, regularisation_factor_init)
 
         current_loss = self.session.run(self.train_loss, feed_dict)
         self.session.run([self.save_parameters, self.save_hessian, self.save_gradients], feed_dict)
@@ -143,17 +138,17 @@ class LevenbergMarquardt(FitGraph):
                 self.session.run(self.restore_parameters)
         return (
             new_loss,
-            # FIXME: get correct prediction
-            self.session.run(self.forward_graph.outputs[0], feed_dict),
+            self.session.run(self.forward_graph.outputs, feed_dict),
             (feed_dict[self.regularization_factor],),
         )
 
     def _process_batch_result(self, params: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
         kwargs["regularisation_factor_init"] = params[0]
 
-    def _process_valid_batch(self, batch: Tuple[np.ndarray, np.ndarray]) -> Tuple[float, np.ndarray]:
-        feed_dict = self._get_feed_dict(batch)
+    def _process_valid_batch(
+        self, batch_x: np.ndarray, batch_y: Iterable[np.ndarray]
+    ) -> Tuple[float, Tuple[np.ndarray, ...]]:
+        feed_dict = self._get_feed_dict(batch_x, batch_y)
         current_loss = self.session.run(self.train_loss, feed_dict)
-        # FIXME: get correct prediction
-        output = self.session.run(self.forward_graph.outputs[0], feed_dict)
+        output = self.session.run(self.forward_graph.outputs, feed_dict)
         return current_loss, output

@@ -6,7 +6,7 @@ import logging
 import math as m
 from collections import defaultdict
 from enum import Enum, auto
-from typing import Any, Callable, Dict, Generator, Iterable, List, Tuple
+from typing import Any, Callable, Dict, Generator, Iterable, List, Sequence, Tuple
 
 import numpy as np
 
@@ -39,45 +39,61 @@ class MetricResult:
         raise TypeError(f"unsupported operand type(s) for /: '{type(self).__name__}' and '{type(value).__name__}'")
 
 
-_MetricType = Callable[[np.ndarray, np.ndarray], np.ndarray]
-MetricType = Callable[[np.ndarray, np.ndarray], MetricResult]
-MetricTypeF = Callable[[np.ndarray, np.ndarray], float]
+MetricType = Callable[[Sequence[np.ndarray], Sequence[np.ndarray]], float]
 
+# def metric_adapter(func: _MetricType) -> MetricType:
+#     def adapter(vec_true: np.ndarray, vec_pred: np.ndarray) -> MetricResult:
+#         return MetricResult(func(vec_true, vec_pred))
 
-def metric_adapter(func: _MetricType) -> MetricType:
-    def adapter(vec_true: np.ndarray, vec_pred: np.ndarray) -> MetricResult:
-        return MetricResult(func(vec_true, vec_pred))
-
-    return adapter
+#     return adapter
 
 
 # @metric_adapter
-def _mse(vec_true: np.ndarray, vec_pred: np.ndarray) -> np.ndarray:  # TODO: may be rename to RMSE due to \/\/\/
-    return np.sqrt(np.mean((vec_true - vec_pred) ** 2, 0))  # TODO: real MSE, doesn't have sqrt
+def __mse(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray], sqrt_func: Callable[[float], float]) -> float:
+    result = 0.0
+    for out_true, out_pred in zip(vec_true, vec_pred):
+        result += sqrt_func(np.mean((out_true - out_pred) ** 2))
+    return result / len(vec_true)
+
+
+def _mse(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> float:
+    return __mse(vec_true, vec_pred, lambda x: x)
+
+
+def _rmse(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> float:
+    return __mse(vec_true, vec_pred, np.sqrt)
 
 
 # @metric_adapter
-def _mae(vec_true: np.ndarray, vec_pred: np.ndarray) -> np.ndarray:
-    return np.mean(np.abs(vec_true - vec_pred), 0)
+def _mae(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> float:
+    result = 0.0
+    for out_true, out_pred in zip(vec_true, vec_pred):
+        result += np.mean(np.abs(out_true - out_pred))
+    return result / len(vec_true)
 
 
 # @metric_adapter
-def _cce(vec_true: np.ndarray, vec_pred: np.ndarray) -> np.ndarray:
-    return np.mean(-(vec_true * np.log(vec_pred)), 0)
+def _cce(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> float:
+    # TODO: add some checks for vec_true
+    result = 0.0
+    for out_true, out_pred in zip(vec_true, vec_pred):
+        result += np.mean(-(out_true * np.log(out_pred)))
+    return result / len(vec_true)
 
 
-@metric_adapter
-def _roc(vec_true: np.ndarray, vec_pred: np.ndarray) -> np.ndarray:
+# @metric_adapter
+def _roc(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> np.ndarray:
     raise NotImplementedError()
 
 
-@metric_adapter
-def _auc(vec_true: np.ndarray, vec_pred: np.ndarray) -> np.ndarray:
+# @metric_adapter
+def _auc(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> np.ndarray:
     raise NotImplementedError()
 
 
-STANDART_METRICS: Dict[str, _MetricType] = dict(
+STANDART_METRICS: Dict[str, MetricType] = dict(
     MSE=_mse,
+    RMSE=_rmse,
     MAE=_mae,
     CCE=_cce,
     # ROC=_roc,
@@ -93,7 +109,7 @@ class OpMode(Enum):
 
 class BatchMetrics:
     def __init__(
-        self, metrics: Dict[str, MetricTypeF], set_metrics_cb: Callable[[Iterable[Tuple[str, float]]], None]
+        self, metrics: Dict[str, MetricType], set_metrics_cb: Callable[[Iterable[Tuple[str, float]]], None]
     ) -> None:
         self._metrics = metrics
         self._result: Dict[str, List[float]] = defaultdict(list)
@@ -107,13 +123,10 @@ class BatchMetrics:
         return ex_type is None
 
     def _reduce(self) -> Generator[Tuple[str, float], None, None]:
-        return (
-            (metric_name, np.mean(value))  # type:ignore
-            for metric_name, value in self._result.items()
-        )
+        return ((metric_name, np.mean(np.array(value))) for metric_name, value in self._result.items())
 
     # TODO Separate metrics to each output
-    def calc_batch(self, vec_true: np.ndarray, vec_pred: np.ndarray) -> None:
+    def calc_batch(self, vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> None:
         for metric_name, metric in self._metrics.items():
             self._result[metric_name].append(metric(vec_true, vec_pred))
 
@@ -125,7 +138,7 @@ class EmptyBatchMetrics(BatchMetrics):
     def __exit__(self, ex_type: Any, exp: Any, traceback: Any) -> bool:
         return ex_type is None
 
-    def calc_batch(self, vec_true: np.ndarray, vec_pred: np.ndarray) -> None:
+    def calc_batch(self, vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> None:
         ...
 
 
@@ -135,9 +148,9 @@ class Metrics:
         [[[1, 2, 3], [3, 2, 1]], [[4, 5, 6], [6, 5, 4]], [[12, 3, 48], [54, 87, 7]]]
     )  # type: ignore
 
-    def __init__(self, metrics_step: int = 1, skip_check: bool = False, **metrics: _MetricType):
+    def __init__(self, metrics_step: int = 1, skip_check: bool = False, **metrics: MetricType):
         self._metrics_step = metrics_step
-        self.metrics: Dict[str, _MetricType] = STANDART_METRICS.copy()
+        self.metrics: Dict[str, MetricType] = STANDART_METRICS.copy()
         # TODO: move metric's checks to separate class.
         for name, value in metrics.items():
             if not isinstance(value, ca.Callable):  # type: ignore
@@ -160,25 +173,25 @@ class Metrics:
 
     def batch_metrics(self, op_mode: OpMode, epoch: int) -> BatchMetrics:
         if epoch % self._metrics_step == 0:
-            return BatchMetrics(self.metrics, functools.partial(self.set_batch_metrics, op_mode=op_mode))  # type:ignore
+            return BatchMetrics(self.metrics, functools.partial(self.set_batch_metrics, op_mode=op_mode))
         return EmptyBatchMetrics()
 
     def set_batch_metrics(self, metrics_results: Iterable[Tuple[str, float]], op_mode: OpMode) -> None:
         for metric_name, value in metrics_results:
             self.results[op_mode][metric_name].append(value)
 
-    @classmethod
-    def _check_metric(cls, metric: MetricType) -> bool:
-        if metric(cls.TESTING_ARRAY[0], cls.TESTING_ARRAY[1]) != metric(cls.TESTING_ARRAY[1], cls.TESTING_ARRAY[0]):
-            return False
-        if metric(cls.TESTING_ARRAY[0], cls.TESTING_ARRAY[0]) != metric(cls.TESTING_ARRAY[0], cls.TESTING_ARRAY[0]):
-            return False
-        if metric(cls.TESTING_ARRAY[0], cls.TESTING_ARRAY[2]) > metric(
-            cls.TESTING_ARRAY[0], cls.TESTING_ARRAY[1]
-        ) + metric(cls.TESTING_ARRAY[1], cls.TESTING_ARRAY[2]):
-            return False
+    # @classmethod
+    # def _check_metric(cls, metric: MetricType) -> bool:
+    #     if metric(cls.TESTING_ARRAY[0], cls.TESTING_ARRAY[1]) != metric(cls.TESTING_ARRAY[1], cls.TESTING_ARRAY[0]):
+    #         return False
+    #     if metric(cls.TESTING_ARRAY[0], cls.TESTING_ARRAY[0]) != metric(cls.TESTING_ARRAY[0], cls.TESTING_ARRAY[0]):
+    #         return False
+    #     if metric(cls.TESTING_ARRAY[0], cls.TESTING_ARRAY[2]) > metric(
+    #         cls.TESTING_ARRAY[0], cls.TESTING_ARRAY[1]
+    #     ) + metric(cls.TESTING_ARRAY[1], cls.TESTING_ARRAY[2]):
+    #         return False
 
-        return True
+    #     return True
 
     def _conf_matrix(self, data: Tuple[np.ndarray, np.ndarray], treshold: float = 0.5) -> dict:
         classification_metrics = {"TP": 0.0, "FP": 0.0, "FN": 0.0, "TN": 0.0}
@@ -190,7 +203,11 @@ class Metrics:
         return classification_metrics
 
     def confusion_data(
-        self, data: Tuple[np.ndarray, np.ndarray], score_beta: Tuple[float] = (1.0,), treshold: float = 0.5
+        self,
+        data: Tuple[np.ndarray, np.ndarray],
+        score_beta: Tuple[float] = (1.0,),
+        treshold: float = 0.5,
+        curves: bool = True,
     ) -> dict:
 
         classification_metrics = self._conf_matrix(data, treshold)
@@ -265,6 +282,9 @@ class Metrics:
                 + classification_metrics["FP"]
             )
 
+        if not curves:
+            return classification_metrics
+
         ones = np.sum(data[0])
         sorted_labels = np.hstack([data[1], data[0]])
         sorted_labels = sorted_labels[np.argsort(sorted_labels[:, 0])][::-1]
@@ -321,6 +341,9 @@ class Metrics:
                 classification_metrics[f"Class {class_idx}"][key] = temp_result[key]
 
         classification_metrics["average"] = {}
+
+        # classification_metrics["class 1", "class 2", ...] -> mean(classification_metrics)
+
         temp_result = self.confusion_data(
             (data[0].ravel().reshape((-1, 1)), data[1].ravel().reshape((-1, 1))),
             score_beta=score_beta,

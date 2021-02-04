@@ -4,9 +4,10 @@ import tensorflow as tf
 
 from .. import DTYPE
 
-Dataset = tf.data.Dataset
+Dataset = tf.compat.v1.data.Dataset
 GradientDescentOptimizer = tf.compat.v1.train.GradientDescentOptimizer
 Operation = tf.Operation
+OutOfRangeError = tf.errors.OutOfRangeError
 PlaceholderType = tf.compat.v1.placeholder
 Session = tf.compat.v1.Session
 Tensor = tf.Tensor
@@ -38,6 +39,7 @@ __all__ = [
     "Dataset",
     "GradientDescentOptimizer",
     "Operation",
+    "OutOfRangeError",
     "PlaceholderType",
     "Session",
     "Tensor",
