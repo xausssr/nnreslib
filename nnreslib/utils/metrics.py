@@ -143,14 +143,15 @@ class EmptyBatchMetrics(BatchMetrics):
 
 
 class Metrics:
-    # TODO: add __slots__
     TESTING_ARRAY = np.asarray(
         [[[1, 2, 3], [3, 2, 1]], [[4, 5, 6], [6, 5, 4]], [[12, 3, 48], [54, 87, 7]]]
     )  # type: ignore
 
+    __slots__ = ("_metrics_step", "_metrics", "results")
+
     def __init__(self, metrics_step: int = 1, skip_check: bool = False, **metrics: MetricType):
         self._metrics_step = metrics_step
-        self.metrics: Dict[str, MetricType] = STANDART_METRICS.copy()
+        self._metrics: Dict[str, MetricType] = STANDART_METRICS.copy()
         # TODO: move metric's checks to separate class.
         for name, value in metrics.items():
             if not isinstance(value, ca.Callable):  # type: ignore
@@ -163,7 +164,7 @@ class Metrics:
             #         '[use skip_check=True" in Metrics] for skip this check',
             #         name,
             #     )
-            self.metrics[name] = metric
+            self._metrics[name] = metric
         # TODO: think about metric result type
         self.results: Dict[OpMode, Dict[str, List[float]]] = defaultdict(lambda: defaultdict(list))
 
@@ -173,7 +174,7 @@ class Metrics:
 
     def batch_metrics(self, op_mode: OpMode, epoch: int) -> BatchMetrics:
         if epoch % self._metrics_step == 0:
-            return BatchMetrics(self.metrics, functools.partial(self.set_batch_metrics, op_mode=op_mode))
+            return BatchMetrics(self._metrics, functools.partial(self.set_batch_metrics, op_mode=op_mode))
         return EmptyBatchMetrics()
 
     def set_batch_metrics(self, metrics_results: Iterable[Tuple[str, float]], op_mode: OpMode) -> None:
