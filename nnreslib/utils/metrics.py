@@ -93,9 +93,9 @@ class MetricChecker:
     @classmethod
     def _check_metric(cls, metric: MetricType) -> bool:
         if metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_1,)) != metric((cls.TEST_ARRAY_1,), (cls.TEST_ARRAY_0,)):
-            return False
+            return False  # FIXME: comparing float!!!
         if metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_0,)) != metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_0,)):
-            return False
+            return False  # FIXME: comparing float!!!
         if metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_2,)) > metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_1,)) + metric(
             (cls.TEST_ARRAY_1,), (cls.TEST_ARRAY_2,)
         ):

@@ -4,15 +4,18 @@ import re
 import numpy as np
 import pytest
 
-from nnreslib.utils.metrics import Metrics, _mse
+from nnreslib.utils.metrics import Metrics, _rmse
 
 
 def test_metrics_init(caplog):
-    Metrics(MY_MSE=_mse)
+    Metrics(MY_RMSE=_rmse)
     assert not caplog.records
 
     def bad_metric(vec_true, vec_pred):
-        return np.sum(np.less(vec_true, vec_pred), axis=0)
+        result = 0.0
+        for out_true, out_pred in zip(vec_true, vec_pred):
+            result += np.sum(np.less(out_true, out_pred))
+        return result / len(vec_true)
 
     Metrics(BAD_METRIC=bad_metric)
     _, level, message = caplog.record_tuples[0]
