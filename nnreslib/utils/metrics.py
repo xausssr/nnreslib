@@ -107,6 +107,40 @@ class OpMode(Enum):
     EVAL = auto()
 
 
+class MetricChecker:
+    __slots__ = ()
+
+    TEST_ARRAY_0 = np.array([[1, 2, 3], [3, 2, 1]])
+    TEST_ARRAY_1 = np.array([[4, 5, 6], [6, 5, 4]])
+    TEST_ARRAY_2 = np.array([[12, 3, 48], [54, 87, 7]])
+
+    @classmethod
+    def check(cls, **metrics: MetricType) -> None:
+        for name, metric in metrics.items():
+            if not isinstance(metric, ca.Callable):  # type: ignore
+                raise ValueError(f"'{name}' metric is not callable")
+            if not cls._check_metric(metric):
+                _logger.warning(
+                    "Metric [%s] does not meet the requirements of the axioms. "
+                    "Metric still be using. "
+                    '[use skip_check=True" in Metrics] for skip this check.',
+                    name,
+                )
+
+    @classmethod
+    def _check_metric(cls, metric: MetricType) -> bool:
+        if metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_1,)) != metric((cls.TEST_ARRAY_1,), (cls.TEST_ARRAY_0,)):
+            return False
+        if metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_0,)) != metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_0,)):
+            return False
+        if metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_2,)) > metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_1,)) + metric(
+            (cls.TEST_ARRAY_1,), (cls.TEST_ARRAY_2,)
+        ):
+            return False
+
+        return True
+
+
 class BatchMetrics:
     def __init__(
         self, metrics: Dict[str, MetricType], set_metrics_cb: Callable[[Iterable[Tuple[str, float]]], None]
@@ -143,27 +177,15 @@ class EmptyBatchMetrics(BatchMetrics):
 
 
 class Metrics:
-    TESTING_ARRAY = np.asarray(
-        [[[1, 2, 3], [3, 2, 1]], [[4, 5, 6], [6, 5, 4]], [[12, 3, 48], [54, 87, 7]]]
-    )  # type: ignore
 
     __slots__ = ("_metrics_step", "_metrics", "results")
 
     def __init__(self, metrics_step: int = 1, skip_check: bool = False, **metrics: MetricType):
         self._metrics_step = metrics_step
         self._metrics: Dict[str, MetricType] = STANDART_METRICS.copy()
-        # TODO: move metric's checks to separate class.
-        for name, value in metrics.items():
-            if not isinstance(value, ca.Callable):  # type: ignore
-                raise ValueError(f"'{name}' metric is not callable")
-            # metric = metric_adapter(value)
-            metric = value
-            # if not self._check_metric(metric) and not skip_check:
-            #     _logger.warning(
-            #         "Metric [%s] does not meet the requirements of the axioms "
-            #         '[use skip_check=True" in Metrics] for skip this check',
-            #         name,
-            #     )
+        if not skip_check:
+            MetricChecker.check(**metrics)
+        for name, metric in metrics.items():
             self._metrics[name] = metric
         # TODO: think about metric result type
         self.results: Dict[OpMode, Dict[str, List[float]]] = defaultdict(lambda: defaultdict(list))
@@ -180,19 +202,6 @@ class Metrics:
     def set_batch_metrics(self, metrics_results: Iterable[Tuple[str, float]], op_mode: OpMode) -> None:
         for metric_name, value in metrics_results:
             self.results[op_mode][metric_name].append(value)
-
-    # @classmethod
-    # def _check_metric(cls, metric: MetricType) -> bool:
-    #     if metric(cls.TESTING_ARRAY[0], cls.TESTING_ARRAY[1]) != metric(cls.TESTING_ARRAY[1], cls.TESTING_ARRAY[0]):
-    #         return False
-    #     if metric(cls.TESTING_ARRAY[0], cls.TESTING_ARRAY[0]) != metric(cls.TESTING_ARRAY[0], cls.TESTING_ARRAY[0]):
-    #         return False
-    #     if metric(cls.TESTING_ARRAY[0], cls.TESTING_ARRAY[2]) > metric(
-    #         cls.TESTING_ARRAY[0], cls.TESTING_ARRAY[1]
-    #     ) + metric(cls.TESTING_ARRAY[1], cls.TESTING_ARRAY[2]):
-    #         return False
-
-    #     return True
 
     def _conf_matrix(self, data: Tuple[np.ndarray, np.ndarray], treshold: float = 0.5) -> dict:
         classification_metrics = {"TP": 0.0, "FP": 0.0, "FN": 0.0, "TN": 0.0}
