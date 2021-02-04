@@ -13,42 +13,9 @@ import numpy as np
 _logger = logging.getLogger(__name__)
 
 
-class MetricResult:
-    def __init__(self, out_values: np.ndarray) -> None:
-        self.out_values = out_values
-        self.mean_value = np.mean(out_values)
-
-    def __add__(self, metric_result: MetricResult) -> MetricResult:
-        return type(self)(self.out_values + metric_result.out_values)
-
-    def __eq__(self, metric_result: object) -> bool:
-        if isinstance(metric_result, type(self)):
-            return np.array_equal(self.out_values, metric_result.out_values)
-        return False
-
-    def __lt__(self, metric_result: object) -> bool:
-        if isinstance(metric_result, type(self)):
-            return np.prod(np.less(self.out_values, metric_result.out_values)) == 1  # type: ignore
-        raise TypeError(
-            f"'<' not supported between instance of '{type(self).__name__}' and '{type(metric_result).__name__}'"
-        )
-
-    def __truediv__(self, value: object) -> MetricResult:
-        if isinstance(value, (int, float)):
-            return type(self)(self.out_values / value)
-        raise TypeError(f"unsupported operand type(s) for /: '{type(self).__name__}' and '{type(value).__name__}'")
-
-
 MetricType = Callable[[Sequence[np.ndarray], Sequence[np.ndarray]], float]
 
-# def metric_adapter(func: _MetricType) -> MetricType:
-#     def adapter(vec_true: np.ndarray, vec_pred: np.ndarray) -> MetricResult:
-#         return MetricResult(func(vec_true, vec_pred))
 
-#     return adapter
-
-
-# @metric_adapter
 def __mse(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray], sqrt_func: Callable[[float], float]) -> float:
     result = 0.0
     for out_true, out_pred in zip(vec_true, vec_pred):
@@ -64,7 +31,6 @@ def _rmse(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> flo
     return __mse(vec_true, vec_pred, np.sqrt)
 
 
-# @metric_adapter
 def _mae(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> float:
     result = 0.0
     for out_true, out_pred in zip(vec_true, vec_pred):
@@ -72,7 +38,6 @@ def _mae(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> floa
     return result / len(vec_true)
 
 
-# @metric_adapter
 def _cce(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> float:
     # TODO: add some checks for vec_true
     result = 0.0
@@ -81,12 +46,10 @@ def _cce(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> floa
     return result / len(vec_true)
 
 
-# @metric_adapter
 def _roc(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> np.ndarray:
     raise NotImplementedError()
 
 
-# @metric_adapter
 def _auc(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> np.ndarray:
     raise NotImplementedError()
 
