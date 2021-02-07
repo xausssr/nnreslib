@@ -4,10 +4,12 @@ import re
 import numpy as np
 import pytest
 
-from nnreslib.utils.metrics import Metrics, _rmse
+from nnreslib.utils.metrics import MetricFlags, Metrics
+from nnreslib.utils.metrics.metrics import STANDART_METRICS
+from nnreslib.utils.metrics.regression_metrics import _rmse
 
 
-def test_metrics_init(caplog):
+def test_init(caplog):
     Metrics(MY_RMSE=_rmse)
     assert not caplog.records
 
@@ -26,6 +28,11 @@ def test_metrics_init(caplog):
         Metrics(NON_CALL=10)
 
 
-def test_metrics_check_metric():
+def test_metric_flags():
+    for metric_name in STANDART_METRICS:
+        MetricFlags[metric_name]  # pylint:disable=pointless-statement
+
+
+def test_check_metric():
     return True
     # good_metrics = lambda x, y:

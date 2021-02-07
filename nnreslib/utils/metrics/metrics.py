@@ -5,65 +5,43 @@ import functools
 import logging
 import math as m
 from collections import defaultdict
-from enum import Enum, auto
-from typing import Any, Callable, Dict, Generator, Iterable, List, Sequence, Tuple
+from enum import Enum, Flag, auto, unique
+from typing import Any, Callable, Dict, Generator, Iterable, List, Sequence, Tuple, Union
 
 import numpy as np
+
+from .categorial_metrics import CATEGORIAL_METRICS
+from .categorial_metrics import MetricType as CategorialMetricType
+from .regression_metrics import REGRESSION_METRICS
+from .regression_metrics import MetricType as RegressionMetricType
 
 _logger = logging.getLogger(__name__)
 
 
-MetricType = Callable[[Sequence[np.ndarray], Sequence[np.ndarray]], float]
+UserMetricType = Callable[[Sequence[np.ndarray], Sequence[np.ndarray]], float]
+StandartMetricType = Union[RegressionMetricType, CategorialMetricType]
+AllMetricType = Union[StandartMetricType, UserMetricType]
+
+STANDART_METRICS: Dict[str, StandartMetricType] = {
+    **REGRESSION_METRICS,
+    **CATEGORIAL_METRICS,
+}
 
 
-def __mse(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray], sqrt_func: Callable[[float], float]) -> float:
-    result = 0.0
-    for out_true, out_pred in zip(vec_true, vec_pred):
-        result += sqrt_func(np.mean((out_true - out_pred) ** 2))
-    return result / len(vec_true)
+@unique
+class MetricFlags(Flag):
+    NONE = 0
+    MSE = auto()
+    RMSE = auto()
+    MAE = auto()
+    ALL_REG = MSE | RMSE | MAE
+    CCE = auto()
+    CAT = auto()
+    ALL_CAT = CCE | CAT
+    ALL = ALL_REG | ALL_CAT
 
 
-def _mse(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> float:
-    return __mse(vec_true, vec_pred, lambda x: x)
-
-
-def _rmse(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> float:
-    return __mse(vec_true, vec_pred, np.sqrt)
-
-
-def _mae(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> float:
-    result = 0.0
-    for out_true, out_pred in zip(vec_true, vec_pred):
-        result += np.mean(np.abs(out_true - out_pred))
-    return result / len(vec_true)
-
-
-def _cce(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> float:
-    # TODO: add some checks for vec_true
-    result = 0.0
-    for out_true, out_pred in zip(vec_true, vec_pred):
-        result += np.mean(-(out_true * np.log(out_pred)))
-    return result / len(vec_true)
-
-
-def _roc(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> np.ndarray:
-    raise NotImplementedError()
-
-
-def _auc(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> np.ndarray:
-    raise NotImplementedError()
-
-
-STANDART_METRICS: Dict[str, MetricType] = dict(
-    MSE=_mse,
-    RMSE=_rmse,
-    MAE=_mae,
-    CCE=_cce,
-    # ROC=_roc,
-    # AUC=_auc,
-)
-
-
+@unique
 class OpMode(Enum):
     TRAIN = auto()
     VALID = auto()
@@ -78,7 +56,7 @@ class MetricChecker:
     TEST_ARRAY_2 = np.array([[12, 3, 48], [54, 87, 7]])
 
     @classmethod
-    def check(cls, **metrics: MetricType) -> None:
+    def check(cls, **metrics: UserMetricType) -> None:
         for name, metric in metrics.items():
             if not isinstance(metric, ca.Callable):  # type: ignore
                 raise ValueError(f"'{name}' metric is not callable")
@@ -91,7 +69,7 @@ class MetricChecker:
                 )
 
     @classmethod
-    def _check_metric(cls, metric: MetricType) -> bool:
+    def _check_metric(cls, metric: UserMetricType) -> bool:
         if not m.isclose(
             metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_1,)), metric((cls.TEST_ARRAY_1,), (cls.TEST_ARRAY_0,))
         ):
@@ -110,7 +88,7 @@ class MetricChecker:
 
 class BatchMetrics:
     def __init__(
-        self, metrics: Dict[str, MetricType], set_metrics_cb: Callable[[Iterable[Tuple[str, float]]], None]
+        self, metrics: Dict[str, AllMetricType], set_metrics_cb: Callable[[Iterable[Tuple[str, float]]], None]
     ) -> None:
         self._metrics = metrics
         self._result: Dict[str, List[float]] = defaultdict(list)
@@ -124,12 +102,14 @@ class BatchMetrics:
         return ex_type is None
 
     def _reduce(self) -> Generator[Tuple[str, float], None, None]:
+        # FIXME: correct calc and reduce CAT metrics
         return ((metric_name, np.mean(np.array(value))) for metric_name, value in self._result.items())
 
     # TODO Separate metrics to each output
     def calc_batch(self, vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> None:
         for metric_name, metric in self._metrics.items():
-            self._result[metric_name].append(metric(vec_true, vec_pred))
+            # FIXME: correct calc and reduce CAT metrics
+            self._result[metric_name].append(metric(vec_true, vec_pred))  # type: ignore
 
 
 class EmptyBatchMetrics(BatchMetrics):
@@ -147,9 +127,17 @@ class Metrics:
 
     __slots__ = ("_metrics_step", "_metrics", "results")
 
-    def __init__(self, metrics_step: int = 1, skip_check: bool = False, **metrics: MetricType):
+    def __init__(
+        self,
+        standart_metrics: MetricFlags = MetricFlags.ALL_REG,
+        metrics_step: int = 1,
+        skip_check: bool = False,
+        **metrics: UserMetricType,
+    ):
+        self._metrics: Dict[str, AllMetricType] = {
+            name: value for name, value in STANDART_METRICS.items() if MetricFlags[name] & standart_metrics
+        }
         self._metrics_step = metrics_step
-        self._metrics: Dict[str, MetricType] = STANDART_METRICS.copy()
         if not skip_check:
             MetricChecker.check(**metrics)
         for name, metric in metrics.items():
