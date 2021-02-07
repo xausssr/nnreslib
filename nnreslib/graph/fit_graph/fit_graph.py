@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from abc import abstractmethod
-from typing import Any, Callable, Dict, Iterable, Tuple, Type, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Type, Union, overload
 
 import numpy as np
 
@@ -77,9 +77,9 @@ class FitGraph(Graph):
         self,
         train_x_data: np.ndarray,  # TODO: x may be list...
         train_y_data: Union[np.ndarray, Iterable[np.ndarray]],
-        valid_x_data: np.ndarray,  # TODO: valid data is optional
-        valid_y_data: Union[np.ndarray, Iterable[np.ndarray]],
         metrics: Metrics,
+        valid_x_data: Optional[np.ndarray] = None,
+        valid_y_data: Optional[Union[np.ndarray, Iterable[np.ndarray]]] = None,
         max_epoch: int = 100,
         min_error: float = 1e-10,
         shuffle: bool = True,
@@ -88,12 +88,37 @@ class FitGraph(Graph):
     ) -> Tuple[int, float]:
         _logger.info("Start training")
         train_dataset = self._prepare_batch(train_x_data, train_y_data, shuffle)
-        valid_dataset = self._prepare_batch(valid_x_data, valid_y_data, shuffle)
+        has_valid_data = False
+        if valid_x_data is not None and valid_y_data is not None:
+            has_valid_data = True
+            valid_dataset = self._prepare_batch(valid_x_data, valid_y_data, shuffle)
 
         current_train_loss = 1e21
+        current_validation_loss = 1e21
         epoch = 0
 
-        metrics.clear(OpMode.TRAIN, OpMode.VALID)
+        log_msg = "epoch %7d: train error: %.12f"
+        if has_valid_data:
+            log_msg += "; validation error: %.12f"
+
+        @overload
+        def get_log_args(epoch: int, train_loss: float) -> Tuple[int, float]:
+            ...
+
+        @overload
+        def get_log_args(epoch: int, train_loss: float, valid_loss: Optional[float]) -> Tuple[int, float, float]:
+            ...
+
+        def get_log_args(
+            epoch: int, train_loss: float, valid_loss: Optional[float] = None
+        ) -> Union[Tuple[int, float], Tuple[int, float, float]]:
+            if valid_loss:
+                return (epoch, train_loss, valid_loss)
+            return (epoch, train_loss)
+
+        metrics.clear(OpMode.TRAIN)
+        if has_valid_data:
+            metrics.clear(OpMode.VALID)
         while current_train_loss > min_error and epoch < max_epoch:
             epoch += 1
             # TODO: move batch processing to function
@@ -104,25 +129,24 @@ class FitGraph(Graph):
                     self._process_batch_result(method_params, kwargs)
                     current_train_loss += loss_on_batch
                     batch_metrics.calc_batch(batch_y, prediction)
-
-            # TODO: make validation on validate_step
-            with metrics.batch_metrics(OpMode.VALID, epoch) as batch_metrics:
-                current_validation_loss = 0.0
-                for batch_x, batch_y in self._get_batches(valid_dataset, True):
-                    loss_on_batch, prediction = self._process_valid_batch(batch_x, batch_y)
-                    current_validation_loss += loss_on_batch
-                    batch_metrics.calc_batch(batch_y, prediction)
-
             # TODO: plot it
             current_train_loss = current_train_loss / self.session.run(train_dataset.cardinality())
-            current_validation_loss = current_validation_loss / self.session.run(valid_dataset.cardinality())
+
+            if has_valid_data:
+                # TODO: make validation on validate_step
+                with metrics.batch_metrics(OpMode.VALID, epoch) as batch_metrics:
+                    current_validation_loss = 0.0
+                    for batch_x, batch_y in self._get_batches(valid_dataset, True):
+                        loss_on_batch, prediction = self._process_valid_batch(batch_x, batch_y)
+                        current_validation_loss += loss_on_batch
+                        batch_metrics.calc_batch(batch_y, prediction)
+                # TODO: plot it
+                current_validation_loss = current_validation_loss / self.session.run(valid_dataset.cardinality())
 
             if epoch % logging_step == 0:
                 _logger.info(
-                    "epoch %7d: train error: %.12f; validation error: %.12f",
-                    epoch,
-                    current_train_loss,
-                    current_validation_loss,
+                    log_msg,
+                    *get_log_args(epoch, current_train_loss, current_validation_loss if has_valid_data else None),
                 )
         _logger.warning("Train ended on epoch: %s  with loss: %.12f", epoch, current_train_loss)
         return epoch, current_train_loss

@@ -1,5 +1,5 @@
 from os import PathLike
-from typing import Any, Dict, List, Optional, Tuple, Union, overload
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, overload
 
 import numpy as np
 
@@ -79,9 +79,9 @@ class Model:
         self,
         method: str,
         train_x_data: np.ndarray,
-        train_y_data: np.ndarray,
-        valid_x_data: np.ndarray,
-        valid_y_data: np.ndarray,
+        train_y_data: Union[np.ndarray, Iterable[np.ndarray]],
+        valid_x_data: Optional[np.ndarray] = None,
+        valid_y_data: Optional[Union[np.ndarray, Iterable[np.ndarray]]] = None,
         max_epoch: int = 100,
         min_error: float = 1e-10,
         shuffle: bool = True,
@@ -97,9 +97,9 @@ class Model:
         return fit_graph.fit(
             train_x_data,
             train_y_data,
+            self.metrics,
             valid_x_data,
             valid_y_data,
-            self.metrics,
             max_epoch,
             min_error,
             shuffle,
