@@ -122,6 +122,9 @@ class CategorialMetrics:
 
     @classmethod
     def get(cls, vec_true: np.ndarray, vec_pred: np.ndarray, threshold: float = 0.5) -> CategorialMetrics:
+        if not ((vec_true == 0) | (vec_true == 1)).all():
+            raise ValueError("Calculation categorial metrics for regression data!")
+
         vec_pred_norm = (vec_pred >= threshold).astype(int)
         diff = vec_true - vec_pred_norm
         cond_pos = np.asarray(vec_true == 1)  # type: ignore
@@ -129,10 +132,10 @@ class CategorialMetrics:
         pred_cond_pos = np.asarray(vec_pred == 1)  # type: ignore
         pred_cond_neg = np.asarray(vec_pred == 0)  # type: ignore
         return CategorialMetrics(
-            np.count_nonzero(cond_pos * pred_cond_pos),  # type: ignore
-            np.count_nonzero(np.asarray(diff == -1)),  # type: ignore
-            np.count_nonzero(np.asarray(diff == 1)),  # type: ignore
-            np.count_nonzero(cond_neg * pred_cond_neg),  # type: ignore
+            TP=np.count_nonzero(cond_pos * pred_cond_pos, 0),  # type: ignore
+            FP=np.count_nonzero(np.asarray(diff == -1), 0),  # type: ignore
+            FN=np.count_nonzero(np.asarray(diff == 1), 0),  # type: ignore
+            TN=np.count_nonzero(cond_neg * pred_cond_neg, 0),  # type: ignore
         )
 
 
@@ -155,7 +158,9 @@ class CalcCategorialMetrics:
     ) -> None:
         self._metrics: Union[CategorialMetrics, List[CategorialMetrics]]
         self._metrics = []
-        for y_true, y_pred in zip(vec_true, vec_pred):
+        for y_true, y_pred in zip(
+            vec_true, vec_pred
+        ):  # FIXME: think about batch conf_matrix aggregation (sum conf_matrix value)
             self._metrics.append(CategorialMetrics.get(y_true, y_pred, threshold))
         if aggregate:
             self._metrics = CategorialMetrics()
