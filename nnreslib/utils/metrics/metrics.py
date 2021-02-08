@@ -38,7 +38,6 @@ class MetricFlags(Flag):
     CCE = auto()
     CAT = auto()
     ALL_CAT = CCE | CAT
-    ALL = ALL_REG | ALL_CAT
 
 
 @unique
