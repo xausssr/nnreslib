@@ -5,7 +5,7 @@ import numpy as np
 
 from nnreslib.architecture import ArchitectureType
 from nnreslib.layers import FullyConnectedLayer, InputLayer
-from nnreslib.model import Model
+from nnreslib.model import FitMethods, Model
 from nnreslib.utils.types import ActivationFunctions, Shape
 
 np.random.seed(42)
@@ -43,7 +43,7 @@ def test_iris_2_outs_net():
 
     model = Model(150, architecture)
     epoch, loss = model.train(
-        "LevenbergMarquardt",
+        FitMethods.LevenbergMarquardt,
         x_train,
         y_train,
         x_validation,

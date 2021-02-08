@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from abc import abstractmethod
+from enum import Enum, auto, unique
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple, Type, Union, overload
 
 import numpy as np
@@ -13,6 +14,11 @@ from ...backend import graph as G
 from ...utils.metrics import Metrics, OpMode
 
 _logger = logging.getLogger(__name__)
+
+
+@unique
+class FitMethods(Enum):
+    LevenbergMarquardt = auto()
 
 
 class FitGraph(Graph):
@@ -51,11 +57,11 @@ class FitGraph(Graph):
 
     # XXX: implement call fit on fitter directly from this method (get_fitter -> fit)
     @classmethod
-    def get_fitter(cls, fit_type: str) -> Type[FitGraph]:
-        fitter = cls._fitters.get(fit_type)
+    def get_fitter(cls, fit_method: FitMethods) -> Type[FitGraph]:
+        fitter = cls._fitters.get(fit_method.name)
         if fitter:
             return fitter
-        raise ValueError(f"Unsupported fit type: {fit_type}")
+        raise ValueError(f"Unsupported fit type: {fit_method}")
 
     @abstractmethod
     def _process_train_batch(
@@ -101,6 +107,7 @@ class FitGraph(Graph):
         if has_valid_data:
             log_msg += "; validation error: %.12f"
 
+        # TODO: refactoring
         @overload
         def get_log_args(epoch: int, train_loss: float) -> Tuple[int, float]:
             ...

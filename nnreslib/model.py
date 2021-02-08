@@ -5,7 +5,7 @@ import numpy as np
 
 from .architecture import Architecture, ArchitectureType
 from .graph import ForwardGraph
-from .graph.fit_graph.fit_graph import FitGraph  # FIXME: move FitGraph to above module
+from .graph.fit_graph import FitGraph, FitMethods
 from .utils.metrics import Metrics
 
 
@@ -62,7 +62,7 @@ class Model:
         self.architecture = Architecture(architecture)
         self.architecture.initialize(data_mean, data_std)
         self.forward_graph = self.build_graph()
-        self.fit_graphs: Dict[str, FitGraph] = {}
+        self.fit_graphs: Dict[FitMethods, FitGraph] = {}
         self.verbose = verbose
         self.metrics = Metrics()
 
@@ -77,7 +77,7 @@ class Model:
 
     def train(
         self,
-        method: str,
+        method: FitMethods,
         train_x_data: np.ndarray,
         train_y_data: Union[np.ndarray, Iterable[np.ndarray]],
         valid_x_data: Optional[np.ndarray] = None,

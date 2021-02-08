@@ -5,7 +5,7 @@ import numpy as np
 
 from nnreslib.architecture import ArchitectureType
 from nnreslib.layers import FullyConnectedLayer, InputLayer
-from nnreslib.model import Model
+from nnreslib.model import FitMethods, Model
 from nnreslib.utils.types import ActivationFunctions, Shape
 
 
@@ -33,7 +33,7 @@ def test_train():
 
     model = Model(150, architecture)
     epoch, loss = model.train(
-        "LevenbergMarquardt",
+        FitMethods.LevenbergMarquardt,
         x_train,
         y_train,
         x_validation,
@@ -84,7 +84,7 @@ def test_train_without_valid():
 
     model = Model(150, architecture)
     epoch, loss = model.train(
-        "LevenbergMarquardt",
+        FitMethods.LevenbergMarquardt,
         x_train,
         y_train,
         max_epoch=200,
