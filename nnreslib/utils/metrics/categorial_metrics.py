@@ -4,7 +4,7 @@ import functools
 import math as m
 from dataclasses import dataclass
 from enum import Enum, unique
-from typing import Callable, Dict, List, Optional, Sequence, Type, Union
+from typing import Callable, Dict, List, Optional, Sequence, Type, Union, overload
 
 import numpy as np
 
@@ -60,22 +60,23 @@ class CategorialMetrics:
     # pylint: enable=invalid-name
 
     def __add__(self, value: object) -> CategorialMetrics:
-        if isinstance(value, CategorialMetrics):
-            return CategorialMetrics(
-                self.TP + value.TP,
-                self.FP + value.FP,
-                self.FN + value.FN,
-                self.TN + value.TN,
-            )
-        raise TypeError(f"unsupported operand type(s) for +: '{type(self).__name__}' and '{type(value).__name__}'")
+        if not isinstance(value, CategorialMetrics):
+            raise TypeError(f"unsupported operand type(s) for +: '{type(self).__name__}' and '{type(value).__name__}'")
+        return CategorialMetrics(
+            self.TP + value.TP,
+            self.FP + value.FP,
+            self.FN + value.FN,
+            self.TN + value.TN,
+        )
 
-    def iadd(self, value: object) -> None:
-        if isinstance(value, CategorialMetrics):
-            self.TP += value.TP
-            self.FP += value.FP
-            self.FN += value.FN
-            self.TN += value.TN
-        raise TypeError(f"unsupported operand type(s) for +=: '{type(self).__name__}' and '{type(value).__name__}'")
+    def __iadd__(self, value: object) -> CategorialMetrics:
+        if not isinstance(value, CategorialMetrics):
+            raise TypeError(f"unsupported operand type(s) for +=: '{type(self).__name__}' and '{type(value).__name__}'")
+        self.TP += value.TP
+        self.FP += value.FP
+        self.FN += value.FN
+        self.TN += value.TN
+        return self
 
     def calc_metrics(self) -> None:
         def save_div(value_a: Union[float, int], value_b: Union[float, int]) -> float:
@@ -129,8 +130,8 @@ class CategorialMetrics:
         diff = vec_true - vec_pred_norm
         cond_pos = np.asarray(vec_true == 1)  # type: ignore
         cond_neg = np.asarray(vec_true == 0)  # type: ignore
-        pred_cond_pos = np.asarray(vec_pred == 1)  # type: ignore
-        pred_cond_neg = np.asarray(vec_pred == 0)  # type: ignore
+        pred_cond_pos = np.asarray(vec_pred_norm == 1)  # type: ignore
+        pred_cond_neg = np.asarray(vec_pred_norm == 0)  # type: ignore
         return CategorialMetrics(
             TP=np.count_nonzero(cond_pos * pred_cond_pos, 0),  # type: ignore
             FP=np.count_nonzero(np.asarray(diff == -1), 0),  # type: ignore
@@ -147,29 +148,83 @@ class CategorialMetricsAggregation(Enum):
 
 
 class CalcCategorialMetrics:
-    __slots__ = ("_metrics",)
+    __slots__ = ("_metrics", "_aggregate")
 
+    @overload
     def __init__(
         self,
         vec_true: Sequence[np.ndarray],
         vec_pred: Sequence[np.ndarray],
-        threshold: float = 0.5,
+        thresholds: Optional[Union[float, List[float]]] = None,
         aggregate: Optional[CategorialMetricsAggregation] = None,
     ) -> None:
-        self._metrics: Union[CategorialMetrics, List[CategorialMetrics]]
-        self._metrics = []
-        for y_true, y_pred in zip(
-            vec_true, vec_pred
-        ):  # FIXME: think about batch conf_matrix aggregation (sum conf_matrix value)
-            self._metrics.append(CategorialMetrics.get(y_true, y_pred, threshold))
-        if aggregate:
-            self._metrics = CategorialMetrics()
-            for y_true, y_pred in zip(vec_true, vec_pred):
-                self._metrics += CategorialMetrics.get(y_true, y_pred, threshold)
+        "By default threshold will be 0.5 for every out"
+        ...
+
+    @overload
+    def __init__(
+        self,
+        *,
+        aggregate: Optional[CategorialMetricsAggregation] = None,
+        metrics: List[CategorialMetrics],
+    ) -> None:
+        ...
+
+    def __init__(
+        self,
+        vec_true: Optional[Sequence[np.ndarray]] = None,
+        vec_pred: Optional[Sequence[np.ndarray]] = None,
+        thresholds: Optional[Union[float, List[float]]] = None,
+        aggregate: Optional[CategorialMetricsAggregation] = None,
+        metrics: Optional[List[CategorialMetrics]] = None,
+    ) -> None:
+        self._aggregate = aggregate
+        if metrics is not None:
+            self._metrics = metrics
         else:
-            self._metrics = []
-            for y_true, y_pred in zip(vec_true, vec_pred):
-                self._metrics.append(CategorialMetrics.get(y_true, y_pred, threshold))
+            if vec_true is None or vec_pred is None:
+                raise ValueError("Empty 'vec_true' or 'vec_pred'")
+            _thresholds = CalcCategorialMetrics._get_thresholds(len(vec_true), thresholds)
+            # FIXME: think about batch conf_matrix aggregation (sum conf_matrix value)
+            self._metrics = [
+                CategorialMetrics.get(y_true, y_pred, threshold)
+                for y_true, y_pred, threshold in zip(vec_true, vec_pred, _thresholds)
+            ]
+        # if aggregate:
+        #     self._metrics = CategorialMetrics()
+        #     for y_true, y_pred in zip(vec_true, vec_pred):
+        #         self._metrics += CategorialMetrics.get(y_true, y_pred, threshold)
+        # else:
+        #     self._metrics = []
+        #     for y_true, y_pred in zip(vec_true, vec_pred):
+        #         self._metrics.append(CategorialMetrics.get(y_true, y_pred, threshold))
+
+    # TODO: move it to utils. Also used in ForwardGraph (_get_thresholds)
+    @staticmethod
+    def _get_thresholds(out_count: int, thresholds: Optional[Union[float, List[float]]]) -> List[float]:
+        if thresholds is None:
+            _thresholds = [0.5 for _ in range(out_count)]
+        else:
+            if isinstance(thresholds, float):
+                _thresholds = [thresholds]
+            else:
+                _thresholds = thresholds
+        return _thresholds
+
+    def __add__(self, value: object) -> CalcCategorialMetrics:
+        if not isinstance(value, CalcCategorialMetrics):
+            raise TypeError(f"unsupported operand type(s) for +: '{type(self).__name__}' and '{type(value).__name__}'")
+        return CalcCategorialMetrics(
+            aggregate=self._aggregate,
+            metrics=[x + y for x, y in zip(self._metrics, value._metrics)],
+        )
+
+    def __iadd__(self, value: object) -> CalcCategorialMetrics:
+        if not isinstance(value, CalcCategorialMetrics):
+            raise TypeError(f"unsupported operand type(s) for +=: '{type(self).__name__}' and '{type(value).__name__}'")
+        for metric, v_metric in zip(self._metrics, value._metrics):
+            metric += v_metric
+        return self
 
     def __call__(self) -> CategorialMetrics:
         ...
