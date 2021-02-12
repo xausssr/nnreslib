@@ -88,6 +88,8 @@ class MetricChecker:
 
 
 class BatchMetrics:
+    __slots__ = ("_metrics", "_results", "_set_metrics_cb")
+
     def __init__(
         self, metrics: Dict[str, AllMetricType], set_metrics_cb: Callable[[Iterable[Tuple[str, MetricResult]]], None]
     ) -> None:
