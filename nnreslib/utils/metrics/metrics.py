@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, Generator, Iterable, List, Sequence, Tup
 
 import numpy as np
 
-from .categorial_metrics import CATEGORIAL_METRICS
+from .categorial_metrics import CATEGORIAL_METRICS, CalcCategorialMetrics, CategorialMetrics
 from .categorial_metrics import MetricType as CategorialMetricType
 from .regression_metrics import REGRESSION_METRICS
 from .regression_metrics import MetricType as RegressionMetricType
@@ -21,6 +21,8 @@ _logger = logging.getLogger(__name__)
 UserMetricType = Callable[[Sequence[np.ndarray], Sequence[np.ndarray]], float]
 StandartMetricType = Union[RegressionMetricType, CategorialMetricType]
 AllMetricType = Union[StandartMetricType, UserMetricType]
+
+MetricResult = Union[float, CategorialMetrics, List[CategorialMetrics]]
 
 STANDART_METRICS: Dict[str, StandartMetricType] = {
     **REGRESSION_METRICS,
@@ -87,10 +89,10 @@ class MetricChecker:
 
 class BatchMetrics:
     def __init__(
-        self, metrics: Dict[str, AllMetricType], set_metrics_cb: Callable[[Iterable[Tuple[str, float]]], None]
+        self, metrics: Dict[str, AllMetricType], set_metrics_cb: Callable[[Iterable[Tuple[str, MetricResult]]], None]
     ) -> None:
         self._metrics = metrics
-        self._result: Dict[str, List[float]] = defaultdict(list)
+        self._results: Dict[str, List[Union[float, CalcCategorialMetrics]]] = defaultdict(list)
         self._set_metrics_cb = set_metrics_cb
 
     def __enter__(self) -> BatchMetrics:
@@ -100,15 +102,17 @@ class BatchMetrics:
         self._set_metrics_cb(self._reduce())
         return ex_type is None
 
-    def _reduce(self) -> Generator[Tuple[str, float], None, None]:
-        # FIXME: correct calc and reduce CAT metrics
-        return ((metric_name, np.mean(np.array(value))) for metric_name, value in self._result.items())
+    def _reduce(self) -> Generator[Tuple[str, MetricResult], None, None]:
+        for metric_name, values in self._results.items():
+            if isinstance(values[0], float):
+                yield metric_name, np.mean(np.array(values))  # type: ignore
+            else:
+                yield metric_name, sum(values[1:], values[0]).get_metrics()  # type: ignore
 
     # TODO Separate metrics to each output
     def calc_batch(self, vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> None:
         for metric_name, metric in self._metrics.items():
-            # FIXME: correct calc and reduce CAT metrics
-            self._result[metric_name].append(metric(vec_true, vec_pred))  # type: ignore
+            self._results[metric_name].append(metric(vec_true, vec_pred))
 
 
 class EmptyBatchMetrics(BatchMetrics):
@@ -142,7 +146,7 @@ class Metrics:
         for name, metric in metrics.items():
             self._metrics[name] = metric
         # TODO: think about metric result type
-        self.results: Dict[OpMode, Dict[str, List[float]]] = defaultdict(lambda: defaultdict(list))
+        self.results: Dict[OpMode, Dict[str, List[MetricResult]]] = defaultdict(lambda: defaultdict(list))
 
     def clear(self, *op_mode: OpMode) -> None:
         for mode in op_mode:
@@ -153,7 +157,11 @@ class Metrics:
             return BatchMetrics(self._metrics, functools.partial(self.set_batch_metrics, op_mode=op_mode))
         return EmptyBatchMetrics()
 
-    def set_batch_metrics(self, metrics_results: Iterable[Tuple[str, float]], op_mode: OpMode) -> None:
+    def set_batch_metrics(
+        self,
+        metrics_results: Iterable[Tuple[str, MetricResult]],
+        op_mode: OpMode,
+    ) -> None:
         for metric_name, value in metrics_results:
             self.results[op_mode][metric_name].append(value)
 

@@ -226,12 +226,13 @@ class CalcCategorialMetrics:
             metric += v_metric
         return self
 
-    def __call__(self) -> CategorialMetrics:
-        ...
+    def get_metrics(self) -> List[CategorialMetrics]:
+        for metric in self._metrics:
+            metric.calc_metrics()
+        return self._metrics
 
 
 _MetricType1 = Callable[[Sequence[np.ndarray], Sequence[np.ndarray]], float]
-# _MetricType2 = Callable[..., CategorialMetrics]
 _MetricType2 = Type[CalcCategorialMetrics]
 MetricType = Union[_MetricType1, _MetricType2]
 
