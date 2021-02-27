@@ -1,34 +1,30 @@
-from typing import Callable, Dict, Sequence
+from typing import Callable, Dict, List, Sequence
 
 import numpy as np
 
 
-def __mse(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray], sqrt_func: Callable[[float], float]) -> float:
-    result = 0.0
-    for out_true, out_pred in zip(vec_true, vec_pred):
-        result += sqrt_func(np.mean((out_true - out_pred) ** 2))
-    return result / len(vec_true)
+def _mse(
+    vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray], sqrt_func: Callable[[float], float]
+) -> List[float]:
+    return [sqrt_func(np.mean((out_true - out_pred) ** 2)) for out_true, out_pred in zip(vec_true, vec_pred)]
 
 
-def _mse(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> float:
-    return __mse(vec_true, vec_pred, lambda x: x)
+def mse(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> List[float]:
+    return _mse(vec_true, vec_pred, lambda x: x)
 
 
-def _rmse(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> float:
-    return __mse(vec_true, vec_pred, np.sqrt)
+def rmse(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> List[float]:
+    return _mse(vec_true, vec_pred, np.sqrt)
 
 
-def _mae(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> float:
-    result = 0.0
-    for out_true, out_pred in zip(vec_true, vec_pred):
-        result += np.mean(np.abs(out_true - out_pred))
-    return result / len(vec_true)
+def mae(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> List[float]:
+    return [np.mean(np.abs(out_true - out_pred)) for out_true, out_pred in zip(vec_true, vec_pred)]
 
 
-MetricType = Callable[[Sequence[np.ndarray], Sequence[np.ndarray]], float]
+MetricType = Callable[[Sequence[np.ndarray], Sequence[np.ndarray]], List[float]]
 
 REGRESSION_METRICS: Dict[str, MetricType] = dict(
-    MSE=_mse,
-    RMSE=_rmse,
-    MAE=_mae,
+    MSE=mse,
+    RMSE=rmse,
+    MAE=mae,
 )

@@ -6,7 +6,15 @@ import numpy as np
 from .architecture import Architecture, ArchitectureType
 from .graph import ForwardGraph
 from .graph.fit_graph.fit_graph import FitGraph  # FIXME: move FitGraph to above module
-from .utils.metrics import Metrics
+from .utils.metrics import Metrics, MetricsSettings, OpMode
+
+# TODO: rewrite MODEL!!!!
+# data = get_data(...)
+# model = Model(batch, arch)
+
+# #work_loop
+# model.init(global_init_settings(data))
+# model.train(data, metric_settings)
 
 
 class Model:
@@ -86,6 +94,8 @@ class Model:
         min_error: float = 1e-10,
         shuffle: bool = True,
         logging_step: int = 10,
+        metrics_settings: Optional[MetricsSettings] = None,
+        valid_metrics_settings: Optional[MetricsSettings] = None,
         **kwargs: Any
     ) -> Tuple[int, float]:
         fit_graph = FitGraph.get_fitter(method)(
@@ -93,6 +103,9 @@ class Model:
         )  # FIXME: create fitter in get_fitter
         # FIXME: don't recreate fitter
         self.fit_graphs[method] = fit_graph
+
+        self.metrics.set_settings(OpMode.TRAIN, metrics_settings)
+        self.metrics.set_settings(OpMode.VALID, valid_metrics_settings)
 
         return fit_graph.fit(
             train_x_data,

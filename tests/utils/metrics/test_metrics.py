@@ -6,11 +6,11 @@ import pytest
 
 from nnreslib.utils.metrics import MetricFlags, Metrics
 from nnreslib.utils.metrics.metrics import STANDART_METRICS
-from nnreslib.utils.metrics.regression_metrics import _rmse
+from nnreslib.utils.metrics.regression_metrics import rmse
 
 
 def test_init(caplog):
-    Metrics(MY_RMSE=_rmse)
+    Metrics(MY_RMSE=rmse)
     assert not caplog.records
 
     def bad_metric(vec_true, vec_pred):

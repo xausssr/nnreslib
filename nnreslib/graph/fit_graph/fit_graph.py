@@ -93,7 +93,6 @@ class FitGraph(Graph):
         current_train_loss = 1e21
         epoch = 0
 
-        metrics.clear(OpMode.TRAIN, OpMode.VALID)
         while current_train_loss > min_error and epoch < max_epoch:
             epoch += 1
             # TODO: move batch processing to function

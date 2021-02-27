@@ -9,16 +9,13 @@ from typing import Callable, Dict, List, Optional, Sequence, Type, Union, overlo
 import numpy as np
 
 
-def _cce(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> float:
+def cce(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> List[float]:
     # TODO: add some checks for vec_true
-    result = 0.0
-    for out_true, out_pred in zip(vec_true, vec_pred):
-        result += np.mean(-(out_true * np.log(out_pred)))
-    return result / len(vec_true)
+    return [np.mean(-(out_true * np.log(out_pred))) for out_true, out_pred in zip(vec_true, vec_pred)]
 
 
 @dataclass
-class CategorialMetrics:
+class CategorialMetrics:  # pylint:disable=too-many-instance-attributes
     # pylint: disable=invalid-name
     TP: int = 0
     FP: int = 0
@@ -232,11 +229,11 @@ class CalcCategorialMetrics:
         return self._metrics
 
 
-_MetricType1 = Callable[[Sequence[np.ndarray], Sequence[np.ndarray]], float]
+_MetricType1 = Callable[[Sequence[np.ndarray], Sequence[np.ndarray]], List[float]]
 _MetricType2 = Type[CalcCategorialMetrics]
 MetricType = Union[_MetricType1, _MetricType2]
 
 CATEGORIAL_METRICS: Dict[str, MetricType] = dict(
-    CCE=_cce,
+    CCE=cce,
     CAT=CalcCategorialMetrics,
 )

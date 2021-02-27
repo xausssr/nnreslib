@@ -5,12 +5,31 @@ import functools
 import logging
 import math as m
 from collections import defaultdict
+from dataclasses import dataclass
 from enum import Enum, Flag, auto, unique
-from typing import Any, Callable, Dict, Generator, Iterable, List, Sequence, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generator,
+    Iterable,
+    List,
+    Mapping,
+    NamedTuple,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import numpy as np
 
-from .categorial_metrics import CATEGORIAL_METRICS, CalcCategorialMetrics, CategorialMetrics
+from .categorial_metrics import (
+    CATEGORIAL_METRICS,
+    CalcCategorialMetrics,
+    CategorialMetrics,
+    CategorialMetricsAggregation,
+)
 from .categorial_metrics import MetricType as CategorialMetricType
 from .regression_metrics import REGRESSION_METRICS
 from .regression_metrics import MetricType as RegressionMetricType
@@ -18,11 +37,11 @@ from .regression_metrics import MetricType as RegressionMetricType
 _logger = logging.getLogger(__name__)
 
 
-UserMetricType = Callable[[Sequence[np.ndarray], Sequence[np.ndarray]], float]
+UserMetricType = Callable[[Sequence[np.ndarray], Sequence[np.ndarray]], List[float]]
 StandartMetricType = Union[RegressionMetricType, CategorialMetricType]
 AllMetricType = Union[StandartMetricType, UserMetricType]
 
-MetricResult = Union[float, CategorialMetrics, List[CategorialMetrics]]
+MetricResult = Union[float, np.ndarray, CategorialMetrics, List[CategorialMetrics]]
 
 STANDART_METRICS: Dict[str, StandartMetricType] = {
     **REGRESSION_METRICS,
@@ -65,36 +84,60 @@ class MetricChecker:
                 _logger.warning(
                     "Metric [%s] does not meet the requirements of the axioms. "
                     "Metric still be using. "
-                    '[use skip_check=True" in Metrics] for skip this check.',
+                    '[use skip_check=True" in MetricsSettings] for skip this check.',
                     name,
                 )
 
     @classmethod
     def _check_metric(cls, metric: UserMetricType) -> bool:
         if not m.isclose(
-            metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_1,)), metric((cls.TEST_ARRAY_1,), (cls.TEST_ARRAY_0,))
+            metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_1,))[0], metric((cls.TEST_ARRAY_1,), (cls.TEST_ARRAY_0,))[0]
         ):
             return False
         if not m.isclose(
-            metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_0,)), metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_0,))
+            metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_0,))[0], metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_0,))[0]
         ):
             return False
-        if metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_2,)) > metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_1,)) + metric(
-            (cls.TEST_ARRAY_1,), (cls.TEST_ARRAY_2,)
+        if (
+            metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_2,))[0]
+            > metric((cls.TEST_ARRAY_0,), (cls.TEST_ARRAY_1,))[0] + metric((cls.TEST_ARRAY_1,), (cls.TEST_ARRAY_2,))[0]
         ):
             return False
 
         return True
 
 
+@dataclass
+class MetricsSettings:  # pylint:disable=too-many-instance-attributes
+    standart_metrics: MetricFlags = MetricFlags.ALL_REG
+    metrics_step: int = 1
+    skip_check: bool = False
+    user_metrics: Mapping[str, UserMetricType] = {}
+    cat_thresholds: Optional[Union[float, List[float]]] = None
+    reg_aggregate: bool = True
+    cat_aggregate: Optional[CategorialMetricsAggregation] = None
+    user_aggregate: Optional[Callable[[List[List[float]]], float]] = None
+
+    def set_user_metrics(self, metrics: Dict[str, AllMetricType]) -> None:
+        if not self.skip_check:
+            MetricChecker.check(**self.user_metrics)
+        for name, metric in self.user_metrics.items():
+            metrics[name] = metric
+
+
+_MetricInfo = NamedTuple("_MetricInfo", [("settings", MetricsSettings), ("metrics", Dict[str, AllMetricType])])
+
+
 class BatchMetrics:
-    __slots__ = ("_metrics", "_results", "_set_metrics_cb")
+    __slots__ = ("_metrics_info", "_results", "_set_metrics_cb")
 
     def __init__(
-        self, metrics: Dict[str, AllMetricType], set_metrics_cb: Callable[[Iterable[Tuple[str, MetricResult]]], None]
+        self,
+        metrics_info: _MetricInfo,
+        set_metrics_cb: Callable[[Iterable[Tuple[str, MetricResult]]], None],
     ) -> None:
-        self._metrics = metrics
-        self._results: Dict[str, List[Union[float, CalcCategorialMetrics]]] = defaultdict(list)
+        self._metrics_info = metrics_info
+        self._results: Dict[str, List[Union[List[float], CalcCategorialMetrics]]] = defaultdict(list)
         self._set_metrics_cb = set_metrics_cb
 
     def __enter__(self) -> BatchMetrics:
@@ -105,15 +148,22 @@ class BatchMetrics:
         return ex_type is None
 
     def _reduce(self) -> Generator[Tuple[str, MetricResult], None, None]:
+        reg_agg = self._metrics_info.settings.reg_aggregate
+        user_agg = self._metrics_info.settings.user_aggregate
         for metric_name, values in self._results.items():
-            if isinstance(values[0], float):
-                yield metric_name, np.mean(np.array(values))  # type: ignore
+            if isinstance(values[0], CalcCategorialMetrics):  # Categorical metric
+                mean_value = sum(values[1:], values[0])
+                yield metric_name, mean_value.get_metrics()  # type: ignore
             else:
-                yield metric_name, sum(values[1:], values[0]).get_metrics()  # type: ignore
+                mean_value = np.mean(np.array(values), 0)  # type: ignore
+                if metric_name not in STANDART_METRICS:  # User metric
+                    yield metric_name, user_agg(mean_value) if user_agg else mean_value  # type: ignore
+                else:  # Regression metric
+                    yield metric_name, np.mean(mean_value) if reg_agg else mean_value  # type: ignore
 
     # TODO Separate metrics to each output
     def calc_batch(self, vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> None:
-        for metric_name, metric in self._metrics.items():
+        for metric_name, metric in self._metrics_info.metrics.items():
             self._results[metric_name].append(metric(vec_true, vec_pred))
 
 
@@ -130,34 +180,38 @@ class EmptyBatchMetrics(BatchMetrics):
 
 class Metrics:
 
-    __slots__ = ("_metrics_step", "_metrics", "results")
+    __slots__ = ("_metrics", "results")
 
-    def __init__(
-        self,
-        standart_metrics: MetricFlags = MetricFlags.ALL_REG,
-        metrics_step: int = 1,
-        skip_check: bool = False,
-        **metrics: UserMetricType,
-    ):
-        self._metrics: Dict[str, AllMetricType] = {
-            name: value for name, value in STANDART_METRICS.items() if MetricFlags[name] & standart_metrics
-        }
-        self._metrics_step = metrics_step
-        if not skip_check:
-            MetricChecker.check(**metrics)
-        for name, metric in metrics.items():
-            self._metrics[name] = metric
+    def __init__(self) -> None:
+        self._metrics: Dict[OpMode, _MetricInfo] = {}
         # TODO: think about metric result type
         self.results: Dict[OpMode, Dict[str, List[MetricResult]]] = defaultdict(lambda: defaultdict(list))
 
-    def clear(self, *op_mode: OpMode) -> None:
-        for mode in op_mode:
-            self.results[mode].clear()
+    def set_settings(self, op_mode: OpMode, settings: Optional[MetricsSettings]) -> None:
+        metric_info = self._metrics.get(op_mode)
+        if metric_info is None or settings is not None:
+            op_settings = settings if settings is not None else MetricsSettings()
+            metrics = {
+                name: value
+                for name, value in STANDART_METRICS.items()
+                if MetricFlags[name] & op_settings.standart_metrics
+            }
+            if MetricFlags.CAT & op_settings.standart_metrics:
+                # pylint:disable=no-member # Due to pylint bug https://github.com/PyCQA/pylint/issues/533
+                metrics[MetricFlags.CAT.name] = functools.partial(  # type: ignore
+                    metrics[MetricFlags.CAT.name],
+                    thresholds=op_settings.cat_thresholds,
+                    aggregate=op_settings.cat_aggregate,
+                )
+                # pylint:enable=no-member
+            op_settings.set_user_metrics(metrics)
+            self._metrics[op_mode] = _MetricInfo(op_settings, metrics)
 
     def batch_metrics(self, op_mode: OpMode, epoch: int) -> BatchMetrics:
-        if epoch % self._metrics_step == 0:
-            return BatchMetrics(self._metrics, functools.partial(self.set_batch_metrics, op_mode=op_mode))
-        return EmptyBatchMetrics()
+        metric_info = self._metrics[op_mode]
+        if epoch % metric_info.settings.metrics_step != 0:
+            return EmptyBatchMetrics()
+        return BatchMetrics(metric_info, functools.partial(self.set_batch_metrics, op_mode=op_mode))
 
     def set_batch_metrics(
         self,

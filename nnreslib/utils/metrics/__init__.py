@@ -1,3 +1,3 @@
-from .metrics import MetricFlags, Metrics, OpMode
+from .metrics import MetricFlags, Metrics, MetricsSettings, OpMode
 
-__all__ = ["Metrics", "MetricFlags", "OpMode"]
+__all__ = ["MetricFlags", "Metrics", "MetricsSettings", "OpMode"]
