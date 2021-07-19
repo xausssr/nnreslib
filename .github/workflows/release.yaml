@@ -29,25 +29,25 @@ jobs:
           pip install -r requirements/linting.txt -r requirements/build.txt -r requirements/main.txt
       - name: Linting with flake8
         run: |
-          flake8 $MODULE_NAME
+          flake8 --config setup.cfg $MODULE_NAME
       - name: Linting with pylint
         run: |
-          pylint $MODULE_NAME
+          pylint --rcfile setup.cfg $MODULE_NAME
       - name: Linting with pycodestyle
         run: |
-          pycodestyle $MODULE_NAME
+          pycodestyle --config setup.cfg $MODULE_NAME
       - name: Linting with mypy
         run: |
-          mypy $MODULE_NAME
+          mypy --config-file setup.cfg $MODULE_NAME
       - name: Linting with isort
         run: |
-          isort --check-only $MODULE_NAME
+          isort --settings-path setup.cfg --check-only $MODULE_NAME
       - name: Linting with black
         run: |
-          black --check $MODULE_NAME
+          black --config pyproject.toml --check $MODULE_NAME
       - name: Run tests
         run: |
-          pytest
+          pytest --pylint-rcfile=setup.cfg
       - name: Create code coverage report
         if: always()
         run: |

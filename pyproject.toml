@@ -1,5 +1,4 @@
 [tool.black]
 line-length = 120
 
-force-exclude = '^(?!/(nnreslib|tests)/).*\.py$'
-include = '(telegram|tests)/.*\.py$'
+include = '^(?!/(nnreslib|tests)/).*\.py$'

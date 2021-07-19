@@ -6,11 +6,32 @@ import sys
 from dataclasses import dataclass
 from os import PathLike
 from pathlib import Path
-from typing import Any, Dict, Generator, Iterable, List, Mapping, Sequence, TextIO, Tuple, Union, cast, overload
+from typing import (
+    Any,
+    Dict,
+    Generator,
+    Iterable,
+    List,
+    Mapping,
+    Sequence,
+    TextIO,
+    Tuple,
+    Union,
+    cast,
+    overload,
+)
 
 from jsonschema import validate
 
-from .layers import ConvolutionLayer, FlattenLayer, FullyConnectedLayer, InputLayer, Layer, MaxPoolLayer, TrainableLayer
+from .layers import (
+    ConvolutionLayer,
+    FlattenLayer,
+    FullyConnectedLayer,
+    InputLayer,
+    Layer,
+    MaxPoolLayer,
+    TrainableLayer,
+)
 from .utils.types import Shape
 
 ArchitectureLevelKeyType = Union[str, Sequence[str]]

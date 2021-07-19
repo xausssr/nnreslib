@@ -47,7 +47,7 @@ jobs:
           key: ${{ runner.os }}-${{ env.pythonLocation }}-${{ hashFiles('requirements/linting.txt', 'requirements/build.txt', 'requirements/tests.txt', 'requirements/main.txt') }}
       - name: Lint with flake8, pylint, pycodestyle, mypy, isort, black
         run: |
-          pytest --flake8 --pylint --pycodestyle --mypy --isort --black --keep-duplicates --junit-xml=test-results/linting_status.xml $MODULE_NAME
+          pytest --pylint-rcfile=setup.cfg --flake8 --pylint --pycodestyle --mypy --isort --black --keep-duplicates --junit-xml=test-results/linting_status.xml $MODULE_NAME
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v2

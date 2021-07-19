@@ -4,7 +4,14 @@ from abc import ABC, abstractmethod
 from typing import Callable, Dict, Type, Union
 
 from ..backend import graph as G
-from ..layers import ConvolutionLayer, FlattenLayer, FullyConnectedLayer, InputLayer, Layer, MaxPoolLayer
+from ..layers import (
+    ConvolutionLayer,
+    FlattenLayer,
+    FullyConnectedLayer,
+    InputLayer,
+    Layer,
+    MaxPoolLayer,
+)
 
 ArgsType = Union[int, G.Tensor]
 
