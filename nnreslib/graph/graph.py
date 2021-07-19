@@ -28,7 +28,7 @@ class Graph(ABC):
             dataset = G.Dataset.zip((dataset, y_dataset))
         if shuffle:
             dataset = dataset.shuffle(dataset.cardinality(), reshuffle_each_iteration=True)
-        return dataset.batch(self.batch_size, drop_remainder=True)
+        return dataset.batch(self.batch_size, drop_remainder=True)  # FIXME: if len(data) < batch_size
 
     @overload
     def _get_batches(self, data: G.Dataset) -> Generator[Tuple[np.ndarray], None, None]:
