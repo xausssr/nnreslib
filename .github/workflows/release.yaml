@@ -59,6 +59,21 @@ jobs:
         run: |
           source ./.venv/bin/activate
           python -m pytest
+      - name: Create code coverage report
+        if: always()
+        run: |
+          source ./.venv/bin/activate
+          coverage xml
+      - name: Upload coverage result to codecov.io
+        if: always()
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: coverage/coverage.xml
+          flags: unittests
+          env_vars: OS,PYTHON
+          fail_ci_if_error: true
+          verbose: true
       - name: Check version
         run: |
           TAG=$(git describe --tags)

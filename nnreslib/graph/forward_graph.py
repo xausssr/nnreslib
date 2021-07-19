@@ -30,9 +30,11 @@ class ForwardGraph(Graph):
     def __init__(self, batch_size: int, architecture: Architecture) -> None:
         super().__init__(batch_size)
         self._parameters_index: Dict[str, int] = {}
-        self.parameters = self._get_parameters_vector(architecture)
 
         _logger.info("Start building model graph")
+
+        self.parameters = self._get_parameters_vector(architecture)
+
         layers = self._create_layers(self.batch_size, architecture)
 
         # Move placeholders for input layers to graph layers dict
@@ -85,6 +87,7 @@ class ForwardGraph(Graph):
 
         self.outputs = tuple([self.layers[x] for x in architecture._output_layers])
         self.session.run(G.global_variables_initializer())
+        _logger.info("Finish building model graph")
 
     def _get_parameters_vector(self, architecture: Architecture) -> G.VariableType:
         parameters_flatten: List[np.ndarray] = []
@@ -138,14 +141,27 @@ class ForwardGraph(Graph):
 
     def predict_proba(self, x_data: np.ndarray) -> Union[np.ndarray, List[np.ndarray]]:
         dataset = self._prepare_batch(x_data, shuffle=False)
-        predict_batches, _ = self.session.run(self._get_batches(dataset, train=False))
-        predict_result = list(self.session.run(self.outputs, feed_dict={self.inputs: predict_batches[0]}))
-        for batch in predict_batches[1:]:
+        predict_batches = self._get_batches(dataset)
+        first_batch = next(predict_batches)
+        predict_result = list(self.session.run(self.outputs, feed_dict={self.inputs: first_batch}))
+
+        for batch in predict_batches:
             for pred_idx, (pred_mem, pred_current) in enumerate(
                 zip(predict_result, self.session.run(self.outputs, feed_dict={self.inputs: batch}))
             ):
                 predict_result[pred_idx] = np.vstack([pred_mem, pred_current])
+
         return predict_result[0] if len(predict_result) == 1 else predict_result
+
+    def _get_thresholds(self, thresholds: Optional[Union[float, List[float]]]) -> List[float]:
+        if thresholds is None:
+            _thresholds = [0.5 for _ in range(len(self.outputs))]
+        else:
+            if isinstance(thresholds, float):
+                _thresholds = [thresholds]
+            else:
+                _thresholds = thresholds
+        return _thresholds
 
     def predict(
         self, x_data: np.ndarray, thresholds: Optional[Union[float, List[float]]] = None
@@ -157,13 +173,10 @@ class ForwardGraph(Graph):
         predict_results = self.predict_proba(x_data)
         if isinstance(predict_results, np.ndarray):
             predict_results = [predict_results]
-        if thresholds is None:
-            _thresholds = [0.5 for idx in range(len(predict_results))]
-        else:
-            if isinstance(thresholds, float):
-                _thresholds = [thresholds]
-            else:
-                _thresholds = thresholds
+
+        _thresholds = self._get_thresholds(thresholds)
+
         for out_idx, (predict_result, threshold) in enumerate(zip(predict_results, _thresholds)):
             predict_results[out_idx] = (predict_result > threshold).astype(int)
+
         return predict_results[0] if len(predict_results) == 1 else predict_results

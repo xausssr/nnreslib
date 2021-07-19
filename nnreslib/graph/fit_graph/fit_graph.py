@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from abc import abstractmethod
-from typing import Any, Callable, Dict, Tuple, Type
+from typing import Any, Callable, Dict, Iterable, Tuple, Type, Union
 
 import numpy as np
 
@@ -10,6 +10,7 @@ from .. import ForwardGraph
 from ..graph import Graph
 from ...architecture import Architecture
 from ...backend import graph as G
+from ...utils.metrics import Metrics, OpMode
 
 _logger = logging.getLogger(__name__)
 
@@ -58,12 +59,14 @@ class FitGraph(Graph):
 
     @abstractmethod
     def _process_train_batch(
-        self, batch: Tuple[np.ndarray, np.ndarray], **kwargs: Any
-    ) -> Tuple[float, np.ndarray, Tuple[Any, ...]]:
+        self, batch_x: np.ndarray, batch_y: Iterable[np.ndarray], **kwargs: Any
+    ) -> Tuple[float, Tuple[np.ndarray, ...], Tuple[Any, ...]]:
         ...
 
     @abstractmethod
-    def _process_valid_batch(self, batch: Tuple[np.ndarray, np.ndarray]) -> Tuple[float, np.ndarray]:
+    def _process_valid_batch(
+        self, batch_x: np.ndarray, batch_y: Iterable[np.ndarray]
+    ) -> Tuple[float, Tuple[np.ndarray, ...]]:
         ...
 
     @abstractmethod
@@ -72,16 +75,18 @@ class FitGraph(Graph):
 
     def fit(
         self,
-        train_x_data: np.ndarray,
-        train_y_data: np.ndarray,
+        train_x_data: np.ndarray,  # TODO: x may be list...
+        train_y_data: Union[np.ndarray, Iterable[np.ndarray]],
         valid_x_data: np.ndarray,  # TODO: valid data is optional
-        valid_y_data: np.ndarray,
+        valid_y_data: Union[np.ndarray, Iterable[np.ndarray]],
+        metrics: Metrics,
         max_epoch: int = 100,
         min_error: float = 1e-10,
         shuffle: bool = True,
         logging_step: int = 10,
         **kwargs: Any,
     ) -> Tuple[int, float]:
+        _logger.info("Start training")
         train_dataset = self._prepare_batch(train_x_data, train_y_data, shuffle)
         valid_dataset = self._prepare_batch(valid_x_data, valid_y_data, shuffle)
 
@@ -90,25 +95,26 @@ class FitGraph(Graph):
 
         while current_train_loss > min_error and epoch < max_epoch:
             epoch += 1
-            current_train_loss = 0.0
             # TODO: move batch processing to function
-            train_batches = self.session.run(self._get_batches(train_dataset))
-            for batch in zip(train_batches[0], train_batches[1]):
-                loss_on_batch, _, method_params = self._process_train_batch(batch, **kwargs)
-                self._process_batch_result(method_params, kwargs)
-                current_train_loss += loss_on_batch
-                # TODO: calculate metrics for training data
+            with metrics.batch_metrics(OpMode.TRAIN, epoch) as batch_metrics:
+                current_train_loss = 0.0
+                for batch_x, batch_y in self._get_batches(train_dataset, True):
+                    loss_on_batch, prediction, method_params = self._process_train_batch(batch_x, batch_y, **kwargs)
+                    self._process_batch_result(method_params, kwargs)
+                    current_train_loss += loss_on_batch
+                    batch_metrics.calc_batch(batch_y, prediction)
 
-            current_validation_loss = 0.0
-            valid_batches = self.session.run(self._get_batches(valid_dataset))
-            for batch in zip(valid_batches[0], valid_batches[1]):
-                loss_on_batch, _ = self._process_valid_batch(batch)
-                current_validation_loss += loss_on_batch
-                # TODO: calculate metrics for validation data
+            # TODO: make validation on validate_step
+            with metrics.batch_metrics(OpMode.VALID, epoch) as batch_metrics:
+                current_validation_loss = 0.0
+                for batch_x, batch_y in self._get_batches(valid_dataset, True):
+                    loss_on_batch, prediction = self._process_valid_batch(batch_x, batch_y)
+                    current_validation_loss += loss_on_batch
+                    batch_metrics.calc_batch(batch_y, prediction)
 
             # TODO: plot it
-            current_train_loss = current_train_loss / train_batches[0].shape[0]
-            current_validation_loss = current_validation_loss / valid_batches[0].shape[0]
+            current_train_loss = current_train_loss / self.session.run(train_dataset.cardinality())
+            current_validation_loss = current_validation_loss / self.session.run(valid_dataset.cardinality())
 
             if epoch % logging_step == 0:
                 _logger.info(

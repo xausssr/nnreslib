@@ -12,27 +12,36 @@ from nnreslib.utils.types import ActivationFunctions, Shape
 np.random.seed(42)
 
 
-def test_iris_net():
+def test_iris_2_outs_net():
     tf.compat.v1.reset_default_graph()
 
     data = np.load("./data/iris.npy")
     np.random.shuffle(data)
     x_train = data[:150, :-1]
     y_train = np.eye(3)[data[:150, -1].reshape((-1)).astype(int)].astype(np.float64)
+    y_train = [y_train[:, :-1], y_train[:, -1:]]
 
     x_validation = data[:150, :-1]
     y_validation = np.eye(3)[data[:150, -1].reshape((-1)).astype(int)].astype(np.float64)
+    y_validation = [y_validation[:, :-1], y_validation[:, -1:]]
 
     architecture: ArchitectureType = [
         InputLayer("input", Shape(4)),
         FullyConnectedLayer("fc_1", neurons=5),
-        FullyConnectedLayer("fc_2", neurons=6),
-        FullyConnectedLayer(
-            "fc_3",
-            neurons=3,
-            activation=ActivationFunctions.SOFT_MAX,
-            is_out=True,
-        ),
+        [FullyConnectedLayer("fc_2_1", neurons=6), FullyConnectedLayer("fc_2_2", neurons=3)],
+        {
+            "fc_2_1": FullyConnectedLayer(
+                "fc_3_1",
+                neurons=2,
+                activation=ActivationFunctions.SOFT_MAX,
+                is_out=True,
+            ),
+            "fc_2_2": FullyConnectedLayer(
+                "fc_3_2",
+                neurons=1,
+                is_out=True,
+            ),
+        },
     ]
 
     model = Model(150, architecture)
@@ -42,16 +51,16 @@ def test_iris_net():
         y_train,
         x_validation,
         y_validation,
-        200,
+        10,
         0.0005,
         step_into_epoch=10,
-        regularisation_factor_init=5.0,
-        regularisation_factor_decay=10.0,
-        regularisation_factor_increase=10.0,
+        regularisation_factor_init=3.0,
+        regularisation_factor_decay=7.0,
+        regularisation_factor_increase=7.0,
     )
 
-    assert epoch < 200
-    assert loss < 0.0005
+    assert epoch == 10
+    assert loss < 0.1
     # assert np.array_equal(model.predict(x_train)[0], np.array([1, 0, 0]))
 
     # Only for interactive testing
