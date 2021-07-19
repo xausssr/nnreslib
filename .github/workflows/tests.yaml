@@ -94,7 +94,7 @@ jobs:
         if: always()
         run: |
           source ./.venv/bin/activate
-          coverage xml
+          coverage xml || exit 0
       - name: Upload coverage result to codecov.io
         if: always()
         uses: codecov/codecov-action@v1
