@@ -2,6 +2,7 @@
 # from nnreslib.utils.metrics import OpMode
 
 import numpy as np
+import tensorflow as tf
 
 from nnreslib.architecture import ArchitectureType
 from nnreslib.layers import FullyConnectedLayer, InputLayer
@@ -12,6 +13,8 @@ np.random.seed(42)
 
 
 def test_iris_net():
+    tf.compat.v1.reset_default_graph()
+
     data = np.load("./data/iris.npy")
     np.random.shuffle(data)
     x_train = data[:150, :-1]
