@@ -5,7 +5,7 @@ import functools
 import logging
 import math as m
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, Flag, auto, unique
 from typing import (
     Any,
@@ -27,8 +27,8 @@ import numpy as np
 from .categorial_metrics import (
     CATEGORIAL_METRICS,
     CalcCategorialMetrics,
-    CategorialMetrics,
     CategorialMetricsAggregation,
+    CategorialMetricsResult,
 )
 from .categorial_metrics import MetricType as CategorialMetricType
 from .regression_metrics import REGRESSION_METRICS
@@ -41,8 +41,9 @@ UserMetricType = Callable[[Sequence[np.ndarray], Sequence[np.ndarray]], List[flo
 StandartMetricType = Union[RegressionMetricType, CategorialMetricType]
 AllMetricType = Union[StandartMetricType, UserMetricType]
 
-MetricResult = Union[float, np.ndarray, CategorialMetrics, List[CategorialMetrics]]
+MetricResult = Union[float, np.ndarray, CategorialMetricsResult]
 
+# TODO: think about metics name not plain string
 STANDART_METRICS: Dict[str, StandartMetricType] = {
     **REGRESSION_METRICS,
     **CATEGORIAL_METRICS,
@@ -112,7 +113,7 @@ class MetricsSettings:  # pylint:disable=too-many-instance-attributes
     standart_metrics: MetricFlags = MetricFlags.ALL_REG
     metrics_step: int = 1
     skip_check: bool = False
-    user_metrics: Mapping[str, UserMetricType] = {}
+    user_metrics: Mapping[str, UserMetricType] = field(default_factory=dict)
     cat_thresholds: Optional[Union[float, List[float]]] = None
     reg_aggregate: bool = True
     cat_aggregate: Optional[CategorialMetricsAggregation] = None
@@ -168,6 +169,8 @@ class BatchMetrics:
 
 
 class EmptyBatchMetrics(BatchMetrics):
+    __slots__ = ()
+
     def __init__(self) -> None:  # pylint:disable=super-init-not-called
         ...
 
@@ -179,7 +182,6 @@ class EmptyBatchMetrics(BatchMetrics):
 
 
 class Metrics:
-
     __slots__ = ("_metrics", "results")
 
     def __init__(self) -> None:
@@ -197,7 +199,8 @@ class Metrics:
                 if MetricFlags[name] & op_settings.standart_metrics
             }
             if MetricFlags.CAT & op_settings.standart_metrics:
-                # pylint:disable=no-member # Due to pylint bug https://github.com/PyCQA/pylint/issues/533
+                # pylint:disable=no-member
+                # XXX: Due to pylint bug https://github.com/PyCQA/pylint/issues/533
                 metrics[MetricFlags.CAT.name] = functools.partial(  # type: ignore
                     metrics[MetricFlags.CAT.name],
                     thresholds=op_settings.cat_thresholds,
@@ -206,14 +209,15 @@ class Metrics:
                 # pylint:enable=no-member
             op_settings.set_user_metrics(metrics)
             self._metrics[op_mode] = _MetricInfo(op_settings, metrics)
+        self.results[op_mode].clear()
 
     def batch_metrics(self, op_mode: OpMode, epoch: int) -> BatchMetrics:
         metric_info = self._metrics[op_mode]
         if epoch % metric_info.settings.metrics_step != 0:
             return EmptyBatchMetrics()
-        return BatchMetrics(metric_info, functools.partial(self.set_batch_metrics, op_mode=op_mode))
+        return BatchMetrics(metric_info, functools.partial(self._set_batch_metrics, op_mode=op_mode))
 
-    def set_batch_metrics(
+    def _set_batch_metrics(
         self,
         metrics_results: Iterable[Tuple[str, MetricResult]],
         op_mode: OpMode,

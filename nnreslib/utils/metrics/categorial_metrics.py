@@ -4,6 +4,7 @@ import functools
 import math as m
 from dataclasses import dataclass
 from enum import Enum, unique
+from statistics import mean
 from typing import Callable, Dict, List, Optional, Sequence, Type, Union, overload
 
 import numpy as np
@@ -12,6 +13,13 @@ import numpy as np
 def cce(vec_true: Sequence[np.ndarray], vec_pred: Sequence[np.ndarray]) -> List[float]:
     # TODO: add some checks for vec_true
     return [np.mean(-(out_true * np.log(out_pred))) for out_true, out_pred in zip(vec_true, vec_pred)]
+
+
+@unique
+class CategorialMetricsAggregation(Enum):
+    MEAN = functools.partial(mean)
+    MAX = functools.partial(max)
+    MIN = functools.partial(min)
 
 
 @dataclass
@@ -78,9 +86,10 @@ class CategorialMetrics:  # pylint:disable=too-many-instance-attributes
     def calc_metrics(self) -> None:
         def save_div(value_a: Union[float, int], value_b: Union[float, int]) -> float:
             try:
-                return value_a / value_b
+                ret = value_a / value_b
+                return ret if not m.isnan(ret) else 0
             except ZeroDivisionError:
-                return 1
+                return 1.0
 
         condition_positive = self.TP + self.FN
         condition_negative = self.FP + self.TN
@@ -136,16 +145,32 @@ class CategorialMetrics:  # pylint:disable=too-many-instance-attributes
             TN=np.count_nonzero(cond_neg * pred_cond_neg, 0),  # type: ignore
         )
 
+    @classmethod
+    def aggregate(
+        cls, value_a: CategorialMetrics, value_b: CategorialMetrics, agg_func: CategorialMetricsAggregation
+    ) -> CategorialMetrics:
+        ret = cls()
+        for name in ret.__dict__:
+            ret.__dict__[name] = agg_func.value((value_a.__dict__[name], value_b.__dict__[name]))
+        return ret
 
-@unique
-class CategorialMetricsAggregation(Enum):
-    MEAN = functools.partial(np.mean)
-    MAX = functools.partial(max)
-    MIN = functools.partial(min)
+
+class CategorialMetricsResult:
+    __slots__ = ("metrics", "aggregate")
+
+    def __init__(
+        self, metrics: List[CategorialMetrics], aggregation: Optional[CategorialMetricsAggregation] = None
+    ) -> None:
+        self.metrics = metrics
+        self.aggregate = (
+            functools.reduce(functools.partial(CategorialMetrics.aggregate, agg_func=aggregation), metrics)
+            if aggregation
+            else None
+        )
 
 
 class CalcCategorialMetrics:
-    __slots__ = ("_metrics", "_aggregate")
+    __slots__ = ("_metrics", "_aggregation")
 
     @overload
     def __init__(
@@ -153,7 +178,7 @@ class CalcCategorialMetrics:
         vec_true: Sequence[np.ndarray],
         vec_pred: Sequence[np.ndarray],
         thresholds: Optional[Union[float, List[float]]] = None,
-        aggregate: Optional[CategorialMetricsAggregation] = None,
+        aggregation: Optional[CategorialMetricsAggregation] = None,
     ) -> None:
         "By default threshold will be 0.5 for every out"
         ...
@@ -162,7 +187,7 @@ class CalcCategorialMetrics:
     def __init__(
         self,
         *,
-        aggregate: Optional[CategorialMetricsAggregation] = None,
+        aggregation: Optional[CategorialMetricsAggregation] = None,
         metrics: List[CategorialMetrics],
     ) -> None:
         ...
@@ -172,29 +197,20 @@ class CalcCategorialMetrics:
         vec_true: Optional[Sequence[np.ndarray]] = None,
         vec_pred: Optional[Sequence[np.ndarray]] = None,
         thresholds: Optional[Union[float, List[float]]] = None,
-        aggregate: Optional[CategorialMetricsAggregation] = None,
+        aggregation: Optional[CategorialMetricsAggregation] = None,
         metrics: Optional[List[CategorialMetrics]] = None,
     ) -> None:
-        self._aggregate = aggregate
+        self._aggregation = aggregation
         if metrics is not None:
             self._metrics = metrics
         else:
             if vec_true is None or vec_pred is None:
                 raise ValueError("Empty 'vec_true' or 'vec_pred'")
             _thresholds = CalcCategorialMetrics._get_thresholds(len(vec_true), thresholds)
-            # FIXME: think about batch conf_matrix aggregation (sum conf_matrix value)
             self._metrics = [
                 CategorialMetrics.get(y_true, y_pred, threshold)
                 for y_true, y_pred, threshold in zip(vec_true, vec_pred, _thresholds)
             ]
-        # if aggregate:
-        #     self._metrics = CategorialMetrics()
-        #     for y_true, y_pred in zip(vec_true, vec_pred):
-        #         self._metrics += CategorialMetrics.get(y_true, y_pred, threshold)
-        # else:
-        #     self._metrics = []
-        #     for y_true, y_pred in zip(vec_true, vec_pred):
-        #         self._metrics.append(CategorialMetrics.get(y_true, y_pred, threshold))
 
     # TODO: move it to utils. Also used in ForwardGraph (_get_thresholds)
     @staticmethod
@@ -212,7 +228,7 @@ class CalcCategorialMetrics:
         if not isinstance(value, CalcCategorialMetrics):
             raise TypeError(f"unsupported operand type(s) for +: '{type(self).__name__}' and '{type(value).__name__}'")
         return CalcCategorialMetrics(
-            aggregate=self._aggregate,
+            aggregation=self._aggregation,
             metrics=[x + y for x, y in zip(self._metrics, value._metrics)],
         )
 
@@ -223,10 +239,10 @@ class CalcCategorialMetrics:
             metric += v_metric
         return self
 
-    def get_metrics(self) -> List[CategorialMetrics]:
+    def get_metrics(self) -> CategorialMetricsResult:
         for metric in self._metrics:
             metric.calc_metrics()
-        return self._metrics
+        return CategorialMetricsResult(self._metrics, self._aggregation)
 
 
 _MetricType1 = Callable[[Sequence[np.ndarray], Sequence[np.ndarray]], List[float]]
