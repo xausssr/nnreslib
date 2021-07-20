@@ -10,7 +10,7 @@ from nnreslib.model import Model
 from nnreslib.utils.types import ActivationFunctions, Shape
 
 
-def test_iris_net_lm():
+def test_iris_net_lm():  # FIXME: fix rounding error -> do not get NAN for "good" random seed
     tf.compat.v1.reset_default_graph()
     np.random.seed(42)
 
