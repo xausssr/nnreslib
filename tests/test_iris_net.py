@@ -15,7 +15,7 @@ np.random.seed(42)
 def test_iris_net_lm():
     tf.compat.v1.reset_default_graph()
 
-    data = np.load("./data/iris.npy")
+    data = np.load("./tests/data/iris.npy")
     np.random.shuffle(data)
     x_train = data[:150, :-1]
     y_train = np.eye(3)[data[:150, -1].reshape((-1)).astype(int)].astype(np.float64)
@@ -57,7 +57,7 @@ def test_iris_net_lm():
 def test_iris_net_adam():
     tf.compat.v1.reset_default_graph()
 
-    data = np.load("./data/iris.npy")
+    data = np.load("./tests/data/iris.npy")
     np.random.shuffle(data)
     x_train = data[:150, :-1]
     y_train = np.eye(3)[data[:150, -1].reshape((-1)).astype(int)].astype(np.float64)

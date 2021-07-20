@@ -15,7 +15,7 @@ np.random.seed(42)
 def test_iris_2_outs_net():
     tf.compat.v1.reset_default_graph()
 
-    data = np.load("./data/iris.npy")
+    data = np.load("./tests/data/iris.npy")
     np.random.shuffle(data)
     x_train = data[:150, :-1]
     y_train = np.eye(3)[data[:150, -1].reshape((-1)).astype(int)].astype(np.float64)
@@ -33,7 +33,7 @@ def test_iris_2_outs_net():
             "fc_2_1": FullyConnectedLayer(
                 "fc_3_1",
                 neurons=2,
-                activation=ActivationFunctions.SOFT_MAX,
+                activation=ActivationFunctions.SOFTMAX,
                 is_out=True,
             ),
             "fc_2_2": FullyConnectedLayer(
