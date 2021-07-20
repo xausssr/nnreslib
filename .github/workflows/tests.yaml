@@ -79,7 +79,7 @@ jobs:
           key: ${{ runner.os }}-${{ env.pythonLocation }}-${{ hashFiles('requirements/linting.txt', 'requirements/build.txt', 'requirements/tests.txt', 'requirements/main.txt') }}
       - name: Run tests
         run: |
-          coverage run -m pytest -v --junit-xml=test-results/pytest_status.xml tests || (($? == 2)) && exit 0 || exit $?
+          coverage run -m pytest -v --junit-xml=test-results/pytest_status.xml tests
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v2
@@ -89,7 +89,7 @@ jobs:
       - name: Create code coverage report
         if: always()
         run: |
-          coverage xml
+          coverage xml  || (($? == 2)) && exit 0 || exit $?
       - name: Upload coverage result to codecov.io
         if: always()
         uses: codecov/codecov-action@v1
@@ -104,6 +104,8 @@ jobs:
   build:
     needs:
       - prepare-env
+      - linting
+      - tests
     name: Build package
     runs-on: ubuntu-latest
     steps:
