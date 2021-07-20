@@ -8,23 +8,28 @@ import numpy as np
 
 from .. import ForwardGraph
 from ..graph import Graph
+from ..layers import InputLayer, Layer
 from ...architecture import Architecture
 from ...backend import graph as G
 from ...utils.metrics import Metrics, OpMode
 
 _logger = logging.getLogger(__name__)
 
+LossFunctionType = Callable[[G.Tensor, G.Tensor], float]
+
 
 class FitGraph(Graph):
     _fitters: Dict[str, Type[FitGraph]] = {}
 
-    __slots__ = ("architecture", "forward_graph", "outputs", "model_outputs")
+    __slots__ = ("architecture", "forward_graph", "loss", "outputs", "model_outputs")
 
     def __init__(
         self,
         batch_size: int,
         architecture: Architecture,
-        forward_graph: ForwardGraph,  # pylint: disable=unused-argument
+        forward_graph: ForwardGraph,
+        loss: LossFunctionType,
+        **kwargs: Dict[str, Any],
     ) -> None:
         super().__init__(batch_size)
         self.architecture = architecture
@@ -39,7 +44,6 @@ class FitGraph(Graph):
             )
         )
         self.model_outputs = G.squeeze(G.concat([G.reshape(x, [-1]) for x in forward_graph.outputs], 0))
-        self.session = G.Session()
 
     @classmethod
     def register_fitter(cls) -> Callable[[Type[FitGraph]], Type[FitGraph]]:
@@ -57,6 +61,24 @@ class FitGraph(Graph):
             return fitter
         raise ValueError(f"Unsupported fit type: {fit_type}")
 
+    def _get_feed_dict(
+        self, batch_x: np.ndarray, batch_y: Iterable[np.ndarray], **kwargs: Any
+    ) -> Dict[Union[G.PlaceholderType, str], Union[float, np.ndarray]]:
+        feed_dict: Dict[Union[G.PlaceholderType, str], Union[float, np.ndarray]] = {}
+
+        # pylint:disable=protected-access
+        _batch_x = batch_x
+        if len(self.architecture._input_layers) == 1:
+            batch_x = np.array([_batch_x])
+
+        layer: Union[InputLayer, Layer]
+        for layer, value in zip(self.architecture.input_layers, batch_x):
+            feed_dict[f"{layer.name}:0"] = value
+        for layer, value in zip(self.architecture.output_layers, batch_y):
+            feed_dict[f"{layer.name}:0"] = value
+
+        return feed_dict
+
     @abstractmethod
     def _process_train_batch(
         self, batch_x: np.ndarray, batch_y: Iterable[np.ndarray], **kwargs: Any
@@ -69,7 +91,6 @@ class FitGraph(Graph):
     ) -> Tuple[float, Tuple[np.ndarray, ...]]:
         ...
 
-    @abstractmethod
     def _process_batch_result(self, params: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
         ...
 

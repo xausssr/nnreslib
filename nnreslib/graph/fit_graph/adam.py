@@ -1,0 +1,57 @@
+from typing import Any, Dict, Iterable, Tuple
+
+import numpy as np
+
+from .fit_graph import FitGraph, LossFunctionType
+from .. import ForwardGraph
+from ...architecture import Architecture
+from ...backend import graph as G
+from ...utils.types import LossFunctions
+
+
+@FitGraph.register_fitter()
+class Adam(FitGraph):
+    __slots__ = (
+        "optimizer",
+        "loss",
+        "train_loss",
+        "learning_rate",
+    )
+
+    def __init__(
+        self,
+        batch_size: int,
+        architecture: Architecture,
+        forward_graph: ForwardGraph,
+        loss: LossFunctionType = LossFunctions.MSE.value,
+        **kwargs: Dict[str, Any],
+    ) -> None:
+        super().__init__(batch_size, architecture, forward_graph, loss)
+        beta_1 = kwargs.get("beta_1", 0.9)
+        beta_2 = kwargs.get("beta_2", 0.999)
+        epsilon = kwargs.get("epsilon", 1e-8)
+        self.learning_rate = kwargs.get("learning_rate", 0.001)
+        self.session = forward_graph.session
+        self.train_loss = loss(self.outputs, self.model_outputs)
+        self.optimizer = G.Adam(self.learning_rate, beta_1, beta_2, epsilon).minimize(self.train_loss)
+        self.session.run(G.global_variables_initializer())
+
+    def _process_train_batch(
+        self, batch_x: np.ndarray, batch_y: Iterable[np.ndarray], **kwargs: Any
+    ) -> Tuple[float, Tuple[np.ndarray, ...], Tuple[Any, ...]]:
+        feed_dict = self._get_feed_dict(batch_x, batch_y)
+        current_loss = self.session.run(self.train_loss, feed_dict)
+        self.session.run(self.optimizer, feed_dict)
+        return (
+            current_loss,
+            self.session.run(self.forward_graph.outputs, feed_dict),
+            (),
+        )
+
+    def _process_valid_batch(
+        self, batch_x: np.ndarray, batch_y: Iterable[np.ndarray]
+    ) -> Tuple[float, Tuple[np.ndarray, ...]]:
+        feed_dict = self._get_feed_dict(batch_x, batch_y)
+        current_loss = self.session.run(self.train_loss, feed_dict)
+        output = self.session.run(self.forward_graph.outputs, feed_dict)
+        return current_loss, output

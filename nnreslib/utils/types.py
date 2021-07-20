@@ -7,6 +7,7 @@ from enum import Enum, unique
 from typing import TYPE_CHECKING, overload
 
 from ..backend.activation_functions import relu, sigmoid, softmax, tanh
+from ..backend.loss_functions import hinge, logloss, mse, sigmoid_cce, softmax_cce
 
 if TYPE_CHECKING:
     from typing import Generator, Optional, Sequence, Tuple, Union
@@ -17,7 +18,16 @@ class ActivationFunctions(Enum):
     SIGMOID = functools.partial(sigmoid)
     RELU = functools.partial(relu)
     TANH = functools.partial(tanh)
-    SOFT_MAX = functools.partial(softmax)
+    SOFTMAX = functools.partial(softmax)
+
+
+@unique
+class LossFunctions(Enum):
+    HINGE = functools.partial(hinge)
+    LOGLOSS = functools.partial(logloss)
+    MSE = functools.partial(mse)
+    SIGMOID_CCE = functools.partial(sigmoid_cce)
+    SOFTMAX_CCE = functools.partial(softmax_cce)
 
 
 class Shape:

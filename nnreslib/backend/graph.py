@@ -2,6 +2,7 @@ from . import BACKEND, Backends
 
 if BACKEND == Backends.TF:
     from .tf.graph import (
+        Adam,
         Dataset,
         GradientDescentOptimizer,
         Operation,
@@ -37,6 +38,7 @@ else:
     raise ImportError(f"Unsupported backend: {BACKEND}")
 
 __all__ = [
+    "Adam",
     "Dataset",
     "GradientDescentOptimizer",
     "Operation",

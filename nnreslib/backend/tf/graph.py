@@ -4,6 +4,7 @@ import tensorflow as tf
 
 from .. import DTYPE
 
+Adam = tf.compat.v1.train.AdamOptimizer
 Dataset = tf.compat.v1.data.Dataset
 GradientDescentOptimizer = tf.compat.v1.train.GradientDescentOptimizer
 Operation = tf.Operation
@@ -36,6 +37,7 @@ squeeze = tf.squeeze
 zeros = partial(tf.zeros, dtype=DTYPE.value)
 
 __all__ = [
+    "Adam",
     "Dataset",
     "GradientDescentOptimizer",
     "Operation",

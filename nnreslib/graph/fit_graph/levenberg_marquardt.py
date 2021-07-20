@@ -1,12 +1,12 @@
-from typing import Any, Dict, Iterable, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, Tuple, Union
 
 import numpy as np
 
-from .fit_graph import FitGraph
+from .fit_graph import FitGraph, LossFunctionType
 from .. import ForwardGraph
-from ..layers import InputLayer, Layer
 from ...architecture import Architecture
 from ...backend import graph as G
+from ...utils.types import LossFunctions
 
 
 @FitGraph.register_fitter()
@@ -21,12 +21,20 @@ class LevenbergMarquardt(FitGraph):
         "parameters_update",
     )
 
-    def __init__(self, batch_size: int, architecture: Architecture, forward_graph: ForwardGraph) -> None:
-        super().__init__(batch_size, architecture, forward_graph)
+    def __init__(
+        self,
+        batch_size: int,
+        architecture: Architecture,
+        forward_graph: ForwardGraph,
+        loss: LossFunctionType = LossFunctions.MSE.value,
+        **kwargs: Dict[str, Any],
+    ) -> None:
+        super().__init__(batch_size, architecture, forward_graph, loss)
         # TODO fix issue: split graphs
         self.session = forward_graph.session
         # self.train_loss = G.losses_mse(self.outputs, self.model_outputs)
-        self.train_loss = G.reduce_mean(G.square(self.outputs - self.model_outputs))
+
+        self.train_loss = loss(self.outputs, self.model_outputs)
 
         # last_node = None  # FIXME: get correct last graph node
         # x = None # FIXME: input layers from forward_graph
@@ -94,21 +102,11 @@ class LevenbergMarquardt(FitGraph):
         return opt.apply_gradients([(-parameters_derivation, parameters)])
 
     def _get_feed_dict(
-        self, batch_x: np.ndarray, batch_y: Iterable[np.ndarray], regularisation_factor_init: Optional[float] = None
+        self, batch_x: np.ndarray, batch_y: Iterable[np.ndarray], **kwargs: Any
     ) -> Dict[Union[G.PlaceholderType, str], Union[float, np.ndarray]]:
-        feed_dict: Dict[Union[G.PlaceholderType, str], Union[float, np.ndarray]] = {}
+        feed_dict = super()._get_feed_dict(batch_x, batch_y)
 
-        # pylint:disable=protected-access
-        _batch_x = batch_x
-        if len(self.architecture._input_layers) == 1:
-            batch_x = np.array([_batch_x])
-
-        layer: Union[InputLayer, Layer]
-        for layer, value in zip(self.architecture.input_layers, batch_x):
-            feed_dict[f"{layer.name}:0"] = value
-        for layer, value in zip(self.architecture.output_layers, batch_y):
-            feed_dict[f"{layer.name}:0"] = value
-
+        regularisation_factor_init = kwargs.get("regularisation_factor_init")
         if regularisation_factor_init is not None:
             feed_dict[self.regularization_factor] = regularisation_factor_init
 
@@ -123,7 +121,7 @@ class LevenbergMarquardt(FitGraph):
         regularisation_factor_decay: float = kwargs["regularisation_factor_decay"]
         regularisation_factor_increase: float = kwargs["regularisation_factor_increase"]
 
-        feed_dict = self._get_feed_dict(batch_x, batch_y, regularisation_factor_init)
+        feed_dict = self._get_feed_dict(batch_x, batch_y, regularisation_factor_init=regularisation_factor_init)
 
         current_loss = self.session.run(self.train_loss, feed_dict)
         self.session.run([self.save_parameters, self.save_hessian, self.save_gradients], feed_dict)

@@ -99,7 +99,7 @@ class Model:
         **kwargs: Any
     ) -> Tuple[int, float]:
         fit_graph = FitGraph.get_fitter(method)(
-            self.batch_size, self.architecture, self.forward_graph
+            self.batch_size, self.architecture, self.forward_graph, **kwargs
         )  # FIXME: create fitter in get_fitter
         # FIXME: don't recreate fitter
         self.fit_graphs[method] = fit_graph
