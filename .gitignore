@@ -1,8 +1,8 @@
 # Environments
-.venv
-.env
-env
-venv*
+/.venv
+/.env
+/env
+/venv*
 
 # VSCode
 .vscode
@@ -21,7 +21,8 @@ __pycache__/
 .pytest_cache
 
 # Distribution  packagingbuild/
-dist/
+/build
+/dist
 pip-wheel-metadata/
 *.egg-info/
 
@@ -33,6 +34,3 @@ pip-wheel-metadata/
 
 # Code coverage results
 /coverage
-
-# Other
-img/
