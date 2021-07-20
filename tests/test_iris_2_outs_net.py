@@ -9,11 +9,10 @@ from nnreslib.layers import FullyConnectedLayer, InputLayer
 from nnreslib.model import Model
 from nnreslib.utils.types import ActivationFunctions, Shape
 
-np.random.seed(42)
-
 
 def test_iris_2_outs_net():
     tf.compat.v1.reset_default_graph()
+    np.random.seed(42)
 
     data = np.load("./tests/data/iris.npy")
     np.random.shuffle(data)

@@ -9,11 +9,10 @@ from nnreslib.layers import FullyConnectedLayer, InputLayer
 from nnreslib.model import Model
 from nnreslib.utils.types import ActivationFunctions, Shape
 
-np.random.seed(42)
-
 
 def test_iris_net_lm():
     tf.compat.v1.reset_default_graph()
+    np.random.seed(42)
 
     data = np.load("./tests/data/iris.npy")
     np.random.shuffle(data)
@@ -56,6 +55,7 @@ def test_iris_net_lm():
 
 def test_iris_net_adam():
     tf.compat.v1.reset_default_graph()
+    np.random.seed(42)
 
     data = np.load("./tests/data/iris.npy")
     np.random.shuffle(data)
@@ -79,10 +79,10 @@ def test_iris_net_adam():
 
     model = Model(150, architecture)
     epoch, loss = model.train(
-        "Adam", x_train, y_train, x_validation, y_validation, 200, 0.0005, learning_rate=0.01, logging_step=100
+        "Adam", x_train, y_train, x_validation, y_validation, 200, 0.0005, learning_rate=0.01, logging_step=10
     )
 
-    assert epoch < 200
+    assert epoch == 200
     assert loss < 0.02
 
     # assert np.array_equal(model.predict(x_train)[0], np.array([1, 0, 0]))
