@@ -1,4 +1,8 @@
+from __future__ import annotations
+
+import json
 from os import PathLike
+from pathlib import Path
 from typing import Any, Dict, Tuple, Union, overload
 
 import numpy as np
@@ -8,49 +12,16 @@ from .graph import ForwardGraph
 from .graph.fit_graph.fit_graph import FitGraph  # FIXME: move FitGraph to above module
 from .utils.metrics import Metrics
 from .utils.serialized_types import SerializedModelType
+from .utils.utils import validate_json
 
 
 class Model:
     __slots__ = ("batch_size", "architecture", "forward_graph", "fit_graphs", "verbose", "metrics")
 
-    @overload
     def __init__(
         self,
         batch_size: int,
         architecture: ArchitectureType,
-        data_mean: float = 0.0,
-        data_std: float = 0.0,
-        verbose: bool = False,
-    ) -> None:
-        """
-        Load explicit defined architecture
-        """
-
-    @overload
-    def __init__(
-        self, batch_size: int, architecture: str, data_mean: float = 0.0, data_std: float = 0.0, verbose: bool = False
-    ) -> None:
-        """
-        Load architecture from file
-        """
-
-    @overload
-    def __init__(
-        self,
-        batch_size: int,
-        architecture: PathLike,
-        data_mean: float = 0.0,
-        data_std: float = 0.0,
-        verbose: bool = False,
-    ) -> None:
-        """
-        Load architecture from file
-        """
-
-    def __init__(
-        self,
-        batch_size: int,
-        architecture: Union[ArchitectureType, str, PathLike],
         data_mean: float = 0.0,
         data_std: float = 0.0,
         verbose: bool = False,
@@ -66,6 +37,27 @@ class Model:
         self.fit_graphs: Dict[str, FitGraph] = {}
         self.verbose = verbose
         self.metrics = Metrics()
+
+    @overload
+    @classmethod
+    def from_json(cls, file: str) -> Model:
+        ...
+
+    @overload
+    @classmethod
+    def from_json(cls, file: PathLike) -> Model:
+        ...
+
+    @classmethod
+    def from_json(cls, file: Union[str, PathLike]) -> Model:
+        model_path = Path(file)
+        with open(model_path, encoding="utf-8") as input_fd:
+            model_def: SerializedModelType = json.load(input_fd)
+        validate_json(model_def, "../doc/model.schema.json")  # TODO: get it from package
+        return cls(
+            model_def["batch_size"],
+            Architecture.from_json(model_def["architecture"]["architecture"], model_def["architecture"]["is_built"]),
+        )
 
     def build_graph(self) -> ForwardGraph:
         return ForwardGraph(self.batch_size, self.architecture)

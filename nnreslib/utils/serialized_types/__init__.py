@@ -9,7 +9,7 @@ from .architecture import (
 )
 from .initialization import SerializedInitializationType, SerializedInitializeFunctionType
 from .layer import SerializedLayerType
-from .merge import SerializedMergeInputsType
+from .merge import SerializedMergeFunctionsType, SerializedMergeInputsType
 from .model import SerializedModelType
 from .shape import SerializedShapeType
 
@@ -23,6 +23,7 @@ __all__ = [
     "SerializedLayerInfoType",
     "SerializedLayersWithCustomInputsDefinition",
     "SerializedLayerType",
+    "SerializedMergeFunctionsType",
     "SerializedMergeInputsType",
     "SerializedModelType",
     "SerializedNotBuiltArchitectureType",

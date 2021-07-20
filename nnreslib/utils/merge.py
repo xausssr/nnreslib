@@ -6,7 +6,7 @@ from typing import Callable, Optional, Sequence, Union
 
 from .types import Shape
 from ..backend import graph as G
-from ..utils.serialized_types import SerializedMergeInputsType
+from ..utils.serialized_types import SerializedMergeFunctionsType, SerializedMergeInputsType
 
 
 def _data_merge_not_implemented(
@@ -20,6 +20,13 @@ class MergeFunctions(Enum):
     # TODO: fix annotation
     value: Union[Callable[..., G.Tensor], G.Tensor]
     RESHAPE_TO_MAIN = functools.partial(_data_merge_not_implemented)
+
+    def serialize(self) -> SerializedMergeFunctionsType:
+        return self.name
+
+    @classmethod
+    def deserialize(cls, data: SerializedMergeFunctionsType) -> MergeFunctions:
+        return cls[data]
 
 
 def _check_merged_tensors(main_input: Shape, *other_input: Shape, recurrent: Optional[Sequence[Shape]] = None) -> None:
@@ -83,3 +90,7 @@ class MergeInputs:
 
     def serialize(self) -> SerializedMergeInputsType:
         return dict(main_input=self.main_input, merge_func=self._merge_func.name)
+
+    @classmethod
+    def deserialize(cls, data: SerializedMergeInputsType) -> MergeInputs:
+        return cls(**data)

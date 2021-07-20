@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import collections.abc as ca
-import json
 import sys
 from dataclasses import dataclass
 from os import PathLike
@@ -14,6 +13,7 @@ from typing import (
     List,
     Mapping,
     NamedTuple,
+    Optional,
     Sequence,
     TextIO,
     Tuple,
@@ -79,26 +79,34 @@ class Architecture:
         ...
 
     @overload
-    def __init__(self, architecture: str) -> None:
+    def __init__(
+        self,
+        architecture: None,
+    ) -> None:
         ...
 
-    @overload
-    def __init__(self, architecture: PathLike) -> None:
-        ...
-
-    def __init__(self, architecture: Union[ArchitectureType, str, PathLike]) -> None:
+    def __init__(
+        self,
+        architecture: Optional[ArchitectureType],
+    ) -> None:
         self.neurons_count = 0
         self._layers: Dict[str, LayerInfo] = {}
         self._input_layers: List[str] = []
         self._output_layers: List[str] = []
         self._trainable_layers: List[str] = []
         self._architecture: List[ArchitectureInfo] = []
-        _architecture: ArchitectureType = Architecture._load_architecture(architecture)
-        self._parse_layers(_architecture)
-        self._build(_architecture)
+        if architecture:
+            self._parse_layers(architecture)
+            self._build(architecture)
 
-    @staticmethod
-    def _load_architecture_from_json(input_fd: TextIO) -> ArchitectureType:
+    @classmethod
+    def from_json(cls, data: SerializedArchitectureType, is_built: bool) -> Architecture:
+        if is_built:
+            return cls(data)
+        else:
+            ...
+
+    def _load_architecture_from_json(self, input_fd: TextIO) -> ArchitectureType:
         def get_layer_args(layer_info: Dict[str, Any]) -> Dict[str, Any]:
             del layer_info["type"]
             for shape_param in ("input_shape", "kernel", "stride"):
@@ -117,7 +125,6 @@ class Architecture:
             parsed_arch.append(layer_ctor(layer_name, **get_layer_args(layer_info)))
         return parsed_arch
 
-    @staticmethod
     def _load_architecture(architecture: Union[ArchitectureType, str, PathLike]) -> ArchitectureType:
         if not isinstance(architecture, (str, PathLike)):
             return architecture
