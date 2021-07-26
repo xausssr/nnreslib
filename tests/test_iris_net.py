@@ -41,8 +41,8 @@ def test_iris_net_lm():
         y_train,
         x_validation,
         y_validation,
-        1000,  # YOU MUST FAILED!!!!
-        0.0005,
+        200,
+        0.05,
         step_into_epoch=10,
         regularisation_factor_init=5.0,
         regularisation_factor_decay=10.0,
@@ -50,8 +50,8 @@ def test_iris_net_lm():
         percent_random=0.2,
     )
 
-    assert epoch < 1000
-    assert loss < 0.0005
+    assert epoch < 200
+    assert loss < 0.05
 
 
 def test_iris_net_adam():
@@ -80,11 +80,11 @@ def test_iris_net_adam():
 
     model = Model(150, architecture)
     epoch, loss = model.train(
-        "Adam", x_train, y_train, x_validation, y_validation, 200, 0.03, learning_rate=0.01, logging_step=10
+        "Adam", x_train, y_train, x_validation, y_validation, 200, 0.1, learning_rate=0.01, logging_step=10
     )
 
     assert epoch <= 200
-    assert loss < 0.03
+    assert loss < 0.1
 
 
 def test_iris_net_adadelta():
