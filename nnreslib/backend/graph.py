@@ -2,12 +2,17 @@ from . import BACKEND, Backends
 
 if BACKEND == Backends.TF:
     from .tf.graph import (
+        Adadelta,
+        Adagrad,
         Adam,
         Dataset,
+        DType,
         GradientDescentOptimizer,
+        Momentum,
         Operation,
         OutOfRangeError,
         PlaceholderType,
+        RMSProp,
         Session,
         Tensor,
         TensorArray,
@@ -38,12 +43,17 @@ else:
     raise ImportError(f"Unsupported backend: {BACKEND}")
 
 __all__ = [
+    "Adadelta",
+    "Adagrad",
     "Adam",
+    "DType",
     "Dataset",
     "GradientDescentOptimizer",
+    "Momentum",
     "Operation",
     "OutOfRangeError",
     "PlaceholderType",
+    "RMSProp",
     "Session",
     "Tensor",
     "TensorArray",

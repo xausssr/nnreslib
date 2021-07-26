@@ -19,6 +19,8 @@ class LevenbergMarquardt(FitGraph):
         "save_gradients",
         "regularization_factor",
         "parameters_update",
+        "random_step",
+        "parameters_random_update",
     )
 
     def __init__(
@@ -39,7 +41,11 @@ class LevenbergMarquardt(FitGraph):
         # last_node = None  # FIXME: get correct last graph node
         # x = None # FIXME: input layers from forward_graph
         # XXX: self.grads_calculate = G.gradients(last_node, x)  # Need to care
+        self.random_step = G.placeholder(shape=(architecture.neurons_count,), name="random_step")
 
+        self.parameters_random_update = G.assign(
+            self.forward_graph.parameters, self.forward_graph.parameters * self.random_step
+        )
         # Build computation graph for Levenberg-Marqvardt algorithm
         parameters_store = G.Variable(G.zeros((architecture.neurons_count,)))
         self.save_parameters = G.assign(parameters_store, self.forward_graph.parameters)
@@ -47,6 +53,7 @@ class LevenbergMarquardt(FitGraph):
 
         # TODO: Add Hessian approximation
         hessian_store = G.Variable(G.zeros((architecture.neurons_count, architecture.neurons_count)))
+
         hessian_approximation = G.hessians(self.train_loss, self.forward_graph.parameters)[0]
         self.save_hessian = G.assign(hessian_store, hessian_approximation)
 
@@ -106,9 +113,9 @@ class LevenbergMarquardt(FitGraph):
     ) -> Dict[Union[G.PlaceholderType, str], Union[float, np.ndarray]]:
         feed_dict = super()._get_feed_dict(batch_x, batch_y)
 
-        regularisation_factor_init = kwargs.get("regularisation_factor_init")
-        if regularisation_factor_init is not None:
-            feed_dict[self.regularization_factor] = regularisation_factor_init
+        regularisation_factor = kwargs.get("regularisation_factor")
+        if regularisation_factor is not None:
+            feed_dict[self.regularization_factor] = regularisation_factor
 
         return feed_dict
 
@@ -117,14 +124,30 @@ class LevenbergMarquardt(FitGraph):
         self, batch_x: np.ndarray, batch_y: Iterable[np.ndarray], **kwargs: Any
     ) -> Tuple[float, Tuple[np.ndarray, ...], Tuple[Any, ...]]:
         step_into_epoch: int = kwargs["step_into_epoch"]
-        regularisation_factor_init: float = kwargs["regularisation_factor_init"]
-        regularisation_factor_decay: float = kwargs["regularisation_factor_decay"]
-        regularisation_factor_increase: float = kwargs["regularisation_factor_increase"]
+        regularisation_factor_init: float = kwargs.get("regularisation_factor_init", 5.0)
+        regularisation_factor: float = kwargs.get("regularisation_factor", regularisation_factor_init)
+        regularisation_factor_decay: float = kwargs.get("regularisation_factor_decay", 10.0)
+        regularisation_factor_increase: float = kwargs.get("regularisation_factor_increase", 10.0)
+        percent_random: float = kwargs.get("percent_random", 0.2)
 
-        feed_dict = self._get_feed_dict(batch_x, batch_y, regularisation_factor_init=regularisation_factor_init)
+        feed_dict = self._get_feed_dict(batch_x, batch_y, regularisation_factor=regularisation_factor)
+
+        make_random_step = False
+        if feed_dict[self.regularization_factor] > G.DType.max / 10 ** (step_into_epoch + 1):
+            feed_dict[self.random_step] = np.random.uniform(
+                1.0 - percent_random, 1.0 + percent_random, size=(self.architecture.neurons_count,)
+            )
+            feed_dict[self.regularization_factor] = regularisation_factor_init
+            make_random_step = True
+            self.session.run(self.parameters_random_update, feed_dict)
 
         current_loss = self.session.run(self.train_loss, feed_dict)
-        self.session.run([self.save_parameters, self.save_hessian, self.save_gradients], feed_dict)
+        _, hess, _ = self.session.run([self.save_parameters, self.save_hessian, self.save_gradients], feed_dict)
+
+        if make_random_step:
+            feed_dict[self.random_step] = np.ones((self.architecture.neurons_count,))
+            self.session.run(self.parameters_random_update, feed_dict)
+
         for step in range(step_into_epoch):
             self.session.run(self.parameters_update, feed_dict)
             new_loss = self.session.run(self.train_loss, feed_dict)
@@ -141,7 +164,7 @@ class LevenbergMarquardt(FitGraph):
         )
 
     def _process_batch_result(self, params: Tuple[Any, ...], kwargs: Dict[str, Any]) -> None:
-        kwargs["regularisation_factor_init"] = params[0]
+        kwargs["regularisation_factor"] = params[0]
 
     def _process_valid_batch(
         self, batch_x: np.ndarray, batch_y: Iterable[np.ndarray]

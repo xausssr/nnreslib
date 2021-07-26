@@ -21,5 +21,5 @@ class Backends(Enum):
     TF = auto()
 
 
-DTYPE: DTypes = DTypes.FLOAT64
+DTYPE: DTypes = DTypes.FLOAT32
 BACKEND: Backends = Backends.TF
